@@ -1,34 +1,130 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Interactive Systems Lab</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #0d1117;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    h1 {
+      font-size: 60px;
+      margin: 0;
+    }
+
+    .subtitle {
+      color: #8b949e;
+      margin-top: 10px;
+      font-size: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      padding: 40px 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 25px;
+    }
+
+    .card {
+      background: #161b22;
+      border-radius: 15px;
+      overflow: hidden;
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-8px);
+    }
+
+    .card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+    }
+
+    .card-content {
+      padding: 20px;
+    }
+
+    .card h3 {
+      margin: 0;
+    }
+
+    .card p {
+      color: #8b949e;
+      font-size: 14px;
+    }
+
+    .card a {
+      display: inline-block;
+      margin-top: 10px;
+      color: white;
+      background: #238636;
+      padding: 8px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+
+  </style>
 </head>
-<body style="background:#0d1117;color:white;text-align:center;font-family:sans-serif">
 
-  <h1 style="font-size:50px;">🚀 Interactive Systems Lab</h1>
-  <p style="color:gray;">Game Engineering & Interactive Systems Portfolio</p>
+<body>
 
-  <hr style="width:50%;margin:30px auto;">
+  <header>
+    <h1>🚀 Interactive Systems Lab</h1>
+    <p class="subtitle">Game Engineering & Interactive Systems Portfolio</p>
+  </header>
 
-  <h2>🎮 Projects</h2>
+  <div class="container">
 
-  <div style="margin-top:30px;">
+    <div class="grid">
 
-    <p>
-      🧪 <a href="apps/alchemy-lab/index.html" style="color:#58a6ff;font-size:20px;">Alchemy Lab</a><br>
-      <span style="color:gray;">Puzzle system with crafting logic</span>
-    </p>
+      <!-- Alchemy -->
+      <div class="card">
+        <img src="assets/alchemy.png">
+        <div class="card-content">
+          <h3>🧪 Alchemy Lab</h3>
+          <p>Puzzle system with crafting logic</p>
+          <a href="apps/alchemy-lab/index.html">Play</a>
+        </div>
+      </div>
 
-    <p>
-      🏰 <a href="apps/arcane-escape/index.html" style="color:#58a6ff;font-size:20px;">Arcane Escape</a><br>
-      <span style="color:gray;">Interactive multi-room exploration game</span>
-    </p>
+      <!-- Escape -->
+      <div class="card">
+        <img src="assets/escape.png">
+        <div class="card-content">
+          <h3>🏰 Arcane Escape</h3>
+          <p>Interactive multi-room exploration game</p>
+          <a href="apps/arcane-escape/index.html">Play</a>
+        </div>
+      </div>
 
-    <p>
-      🌌 <a href="apps/space-runner/index.html" style="color:#58a6ff;font-size:20px;">Space Runner</a><br>
-      <span style="color:gray;">3D endless runner built with Three.js</span>
-    </p>
+      <!-- Runner -->
+      <div class="card">
+        <img src="assets/runner.png">
+        <div class="card-content">
+          <h3>🌌 Space Runner</h3>
+          <p>3D endless runner built with Three.js</p>
+          <a href="apps/space-runner/index.html">Play</a>
+        </div>
+      </div>
+
+    </div>
 
   </div>
 
