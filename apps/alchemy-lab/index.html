@@ -1,0 +1,2526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tech工坊 · 炼金解谜</title>
+<style>
+  :root {
+    --wood-dark: #2a1810;
+    --wood-mid: #4a2e1a;
+    --wood-light: #6b3d20;
+    --brass: #c9a84c;
+    --brass-dark: #8a6d2b;
+    --brass-light: #e8cc6e;
+    --parchment: #e8d5b7;
+    --parchment-dark: #c4a882;
+    --ink: #2c1810;
+    --glow-blue: #4fc3f7;
+    --glow-purple: #ce93d8;
+    --glow-gold: #ffd54f;
+    --glow-green: #81c784;
+    --glow-red: #ef5350;
+    --glow-orange: #ff8a65;
+    --bg-lab: #1a0e08;
+    --text-light: #e0d0b8;
+    --text-dim: #9a8a72;
+    --panel-bg: rgba(30,18,10,0.92);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg-lab);
+    color: var(--text-light);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  #game-container {
+    display: grid;
+    grid-template-columns: 240px 1fr 280px;
+    grid-template-rows: 60px 1fr 120px;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ── Top Bar ── */
+  #top-bar {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, #1e120a 0%, #2a1810 100%);
+    border-bottom: 2px solid var(--brass-dark);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 10;
+  }
+  #top-bar h1 {
+    font-size: 22px;
+    color: var(--brass-light);
+    letter-spacing: 3px;
+    text-shadow: 0 0 12px rgba(201,168,76,0.4);
+  }
+  #stage-indicator {
+    font-size: 14px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  #stage-indicator span { color: var(--brass); font-weight: bold; }
+
+  /* ── Left Panel: Materials ── */
+  #materials-panel {
+    background: var(--panel-bg);
+    border-right: 2px solid var(--brass-dark);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-title {
+    padding: 12px 16px;
+    font-size: 15px;
+    color: var(--brass);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--brass-dark);
+    text-align: center;
+    text-shadow: 0 0 8px rgba(201,168,76,0.3);
+  }
+  #materials-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  #materials-list::-webkit-scrollbar { width: 6px; }
+  #materials-list::-webkit-scrollbar-thumb { background: var(--brass-dark); border-radius: 3px; }
+  .material-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s;
+    border: 1px solid transparent;
+    position: relative;
+  }
+  .material-item:hover {
+    background: rgba(201,168,76,0.12);
+    border-color: var(--brass-dark);
+  }
+  .material-item.locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+    filter: grayscale(0.8);
+  }
+  .material-item.selected {
+    border-color: var(--brass);
+    background: rgba(201,168,76,0.18);
+    box-shadow: 0 0 12px rgba(201,168,76,0.2);
+  }
+  .mat-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    box-shadow: inset 0 -2px 4px rgba(0,0,0,0.3);
+  }
+  .mat-name { font-size: 13px; color: var(--text-light); }
+  .mat-desc { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+  .mat-locked-label {
+    position: absolute; top:4px; right:8px;
+    font-size:9px; color:var(--glow-red);
+  }
+
+  /* ── Center: Lab Area ── */
+  #lab-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background:
+      radial-gradient(ellipse at 50% 80%, rgba(60,30,10,0.5) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 30%, rgba(40,20,5,0.3) 0%, transparent 50%),
+      linear-gradient(180deg, #120a04 0%, #1e120a 40%, #251810 100%);
+    overflow: hidden;
+  }
+  /* Background dust particles */
+  #dust-canvas {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Cauldron ── */
+  #cauldron-area {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  #cauldron-wrapper {
+    position: relative;
+    width: 220px;
+    height: 200px;
+  }
+  #cauldron-body {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 180px;
+    height: 140px;
+    background: linear-gradient(135deg, #3a3a3a 0%, #222 50%, #1a1a1a 100%);
+    border-radius: 0 0 90px 90px;
+    border: 3px solid #555;
+    border-top: 4px solid var(--brass-dark);
+    box-shadow:
+      inset 0 -20px 30px rgba(0,0,0,0.6),
+      inset 0 10px 20px rgba(0,0,0,0.3),
+      0 4px 20px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  #cauldron-rim {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 20px;
+    background: linear-gradient(180deg, var(--brass-light) 0%, var(--brass) 30%, var(--brass-dark) 100%);
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.3);
+    z-index: 3;
+  }
+  /* Handles */
+  .cauldron-handle {
+    position: absolute;
+    top: 20px;
+    width: 30px;
+    height: 40px;
+    border: 4px solid var(--brass-dark);
+    border-radius: 0 0 15px 15px;
+    border-top: none;
+    z-index: 2;
+  }
+  .cauldron-handle.left { left: 2px; border-right: none; }
+  .cauldron-handle.right { right: 2px; border-left: none; }
+
+  /* Liquid in cauldron */
+  #cauldron-liquid {
+    position: absolute;
+    bottom: 3px;
+    left: 3px;
+    right: 3px;
+    height: 70%;
+    border-radius: 0 0 85px 85px;
+    transition: background 1.5s ease, box-shadow 1.5s ease;
+    background: rgba(30,30,50,0.6);
+    overflow: hidden;
+  }
+  #cauldron-liquid::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    height: 20px;
+    background: inherit;
+    border-radius: 50%;
+    opacity: 0.6;
+    filter: brightness(1.3);
+  }
+
+  /* Bubbles */
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), rgba(255,255,255,0.05));
+    border: 1px solid rgba(255,255,255,0.15);
+    animation: bubbleRise linear forwards;
+  }
+  @keyframes bubbleRise {
+    0% { transform: translateY(0) scale(1); opacity: 0.7; }
+    50% { opacity: 0.5; }
+    100% { transform: translateY(-120px) scale(0.3); opacity: 0; }
+  }
+
+  /* Glow effect under cauldron */
+  #cauldron-glow {
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(79,195,247,0.15);
+    filter: blur(15px);
+    transition: background 1.5s ease;
+    z-index: 1;
+  }
+
+  /* Fire under cauldron */
+  #fire-container {
+    position: absolute;
+    bottom: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 40px;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.8s;
+  }
+  #fire-container.active { opacity: 1; }
+  .flame {
+    position: absolute;
+    bottom: 0;
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    animation: flicker 0.3s ease-in-out infinite alternate;
+  }
+  @keyframes flicker {
+    0% { transform: scaleX(1) scaleY(1) rotate(-2deg); }
+    100% { transform: scaleX(0.9) scaleY(1.1) rotate(2deg); }
+  }
+  .flame-1 {
+    left: 20px; width: 20px; height: 35px;
+    background: linear-gradient(0deg, #ff6b35, #ffc107);
+    animation-delay: 0s;
+  }
+  .flame-2 {
+    left: 38px; width: 24px; height: 40px;
+    background: linear-gradient(0deg, #ff6b35, #ffeb3b);
+    animation-delay: 0.1s;
+  }
+  .flame-3 {
+    left: 55px; width: 18px; height: 30px;
+    background: linear-gradient(0deg, #ff6b35, #ffc107);
+    animation-delay: 0.2s;
+  }
+
+  /* Smoke */
+  .smoke-particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(150,150,150,0.3);
+    filter: blur(8px);
+    animation: smokeRise 2s ease-out forwards;
+  }
+  @keyframes smokeRise {
+    0% { transform: translateY(0) scale(0.5); opacity: 0.5; }
+    100% { transform: translateY(-80px) scale(2); opacity: 0; }
+  }
+
+  /* Explosion */
+  .explosion-particle {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    animation: explode 0.8s ease-out forwards;
+  }
+  @keyframes explode {
+    0% { transform: translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+  }
+
+  /* Stir animation */
+  #stir-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 80px;
+    height: 80px;
+    margin: -40px 0 0 -40px;
+    border: 3px solid transparent;
+    border-top-color: var(--brass);
+    border-radius: 50%;
+    opacity: 0;
+    z-index: 5;
+  }
+  #stir-indicator.stirring {
+    animation: stir 0.6s linear 2;
+    opacity: 1;
+  }
+  @keyframes stir {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* ── Controls ── */
+  #controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    z-index: 3;
+    margin-top: 5px;
+  }
+  .ctrl-btn {
+    padding: 8px 18px;
+    background: linear-gradient(180deg, var(--brass) 0%, var(--brass-dark) 100%);
+    color: var(--ink);
+    border: 2px solid var(--brass-light);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    text-transform: uppercase;
+  }
+  .ctrl-btn:hover {
+    background: linear-gradient(180deg, var(--brass-light) 0%, var(--brass) 100%);
+    box-shadow: 0 0 12px rgba(201,168,76,0.4);
+  }
+  .ctrl-btn:active { transform: scale(0.96); }
+  .ctrl-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  #temp-control {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .temp-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--brass-dark);
+    background: rgba(30,18,10,0.8);
+    color: var(--text-light);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .temp-btn:hover { border-color: var(--brass); }
+  #temp-display {
+    min-width: 70px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--brass);
+    letter-spacing: 1px;
+  }
+  #temp-display .temp-val {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  /* ── Top HUD wrapper (objective bar + messages stacked vertically) ── */
+  #top-hud {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: 92%;
+    max-width: 540px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+  }
+
+  /* ── Message Log ── */
+  #message-area {
+    width: 100%;
+    pointer-events: none;
+  }
+  .game-message {
+    padding: 10px 18px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    font-size: 13px;
+    text-align: center;
+    animation: msgFade 4s ease forwards;
+    pointer-events: auto;
+  }
+  .game-message.success {
+    background: rgba(129,199,132,0.2);
+    border: 1px solid var(--glow-green);
+    color: var(--glow-green);
+    text-shadow: 0 0 6px rgba(129,199,132,0.4);
+  }
+  .game-message.failure {
+    background: rgba(239,83,80,0.2);
+    border: 1px solid var(--glow-red);
+    color: var(--glow-red);
+    text-shadow: 0 0 6px rgba(239,83,80,0.4);
+  }
+  .game-message.info {
+    background: rgba(201,168,76,0.15);
+    border: 1px solid var(--brass);
+    color: var(--brass-light);
+    text-shadow: 0 0 6px rgba(201,168,76,0.3);
+  }
+  .game-message.hint {
+    background: rgba(79,195,247,0.15);
+    border: 1px solid var(--glow-blue);
+    color: var(--glow-blue);
+  }
+  @keyframes msgFade {
+    0% { opacity: 0; transform: translateY(-10px); }
+    10% { opacity: 1; transform: translateY(0); }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* ── Right Panel: Journal ── */
+  #journal-panel {
+    background: var(--panel-bg);
+    border-left: 2px solid var(--brass-dark);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #journal-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  #journal-content::-webkit-scrollbar { width: 6px; }
+  #journal-content::-webkit-scrollbar-thumb { background: var(--brass-dark); border-radius: 3px; }
+  .journal-entry {
+    margin-bottom: 16px;
+    padding: 14px;
+    background: rgba(232,213,183,0.06);
+    border: 1px solid rgba(196,168,130,0.2);
+    border-radius: 6px;
+  }
+  .journal-entry.locked {
+    opacity: 0.4;
+    filter: grayscale(0.6);
+  }
+  .journal-entry-title {
+    font-size: 13px;
+    color: var(--brass);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+  .journal-entry-text {
+    font-size: 12px;
+    color: var(--parchment);
+    line-height: 1.7;
+    font-style: italic;
+    opacity: 0.85;
+  }
+  .journal-entry-hint {
+    font-size: 11px;
+    color: var(--brass);
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(196,168,130,0.12);
+    border-left: 2px solid var(--brass);
+    border-radius: 0 4px 4px 0;
+    font-style: normal;
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+  }
+
+  /* ── Bottom: Inventory ── */
+  #inventory-panel {
+    grid-column: 1 / -1;
+    background: linear-gradient(0deg, #120a04 0%, var(--panel-bg) 100%);
+    border-top: 2px solid var(--brass-dark);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 10px;
+    z-index: 10;
+  }
+  #inv-label {
+    font-size: 13px;
+    color: var(--brass);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-right: 6px;
+    flex-shrink: 0;
+  }
+  #inv-slots {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    overflow-x: auto;
+    padding: 8px 0;
+  }
+  #inv-slots::-webkit-scrollbar { height: 4px; }
+  #inv-slots::-webkit-scrollbar-thumb { background: var(--brass-dark); border-radius: 2px; }
+  .inv-slot {
+    min-width: 70px;
+    height: 70px;
+    border: 2px solid var(--brass-dark);
+    border-radius: 8px;
+    background: rgba(30,18,10,0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .inv-slot:hover {
+    border-color: var(--brass);
+    box-shadow: 0 0 10px rgba(201,168,76,0.2);
+  }
+  .inv-slot .inv-icon { font-size: 24px; }
+  .inv-slot .inv-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    text-align: center;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .inv-slot.craftable {
+    border-color: var(--glow-gold);
+    box-shadow: 0 0 12px rgba(255,213,79,0.25);
+    animation: invPulse 2s ease-in-out infinite;
+  }
+  .inv-slot.usable {
+    border-color: var(--glow-blue);
+    box-shadow: 0 0 12px rgba(79,195,247,0.3);
+    animation: invPulse 1.5s ease-in-out infinite;
+    cursor: pointer;
+  }
+  .inv-slot.usable .inv-label { color: var(--glow-blue); }
+  @keyframes invPulse {
+    0%,100% { box-shadow: 0 0 8px rgba(255,213,79,0.2); }
+    50% { box-shadow: 0 0 18px rgba(255,213,79,0.4); }
+  }
+  .inv-slot.empty { opacity: 0.3; }
+
+  /* ── Embedded Device (Stage 5, replaces overlay) ── */
+  #device-area {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    gap: 16px;
+  }
+  #device-area.active { display: flex; }
+  #device-title {
+    font-size: 14px;
+    color: var(--brass);
+    letter-spacing: 2px;
+  }
+  #device-visual-embed {
+    width: 260px; height: 260px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .device-ring {
+    position: absolute;
+    border: 3px solid var(--brass-dark);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    transition: all 1s;
+  }
+  .device-ring.r1 { width: 230px; height: 230px; }
+  .device-ring.r2 { width: 165px; height: 165px; }
+  .device-ring.r3 { width: 100px; height: 100px; }
+  .device-ring.r4 { width: 40px; height: 40px; background: var(--brass-dark); }
+  .device-ring.lit {
+    border-color: var(--glow-gold);
+    box-shadow: 0 0 20px rgba(255,213,79,0.5), inset 0 0 15px rgba(255,213,79,0.3);
+  }
+  .device-ring.r4.lit {
+    background: var(--glow-gold);
+    box-shadow: 0 0 40px rgba(255,213,79,0.8);
+  }
+  .device-slot {
+    position: absolute;
+    width: 46px; height: 46px;
+    border: 2px dashed var(--brass-dark);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+    line-height: 1.2;
+    padding: 3px;
+  }
+  .device-slot.filled {
+    border-style: solid;
+    border-color: var(--glow-gold);
+    background: rgba(201,168,76,0.2);
+    color: var(--glow-gold);
+    box-shadow: 0 0 8px rgba(255,213,79,0.25);
+  }
+  .device-slot:not(.filled):hover {
+    border-color: var(--brass-light);
+    background: rgba(201,168,76,0.1);
+  }
+  #device-status-embed {
+    font-size: 13px;
+    color: var(--brass);
+    letter-spacing: 1px;
+    text-align: center;
+    line-height: 1.6;
+  }
+  #device-slots-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .device-slot-inline {
+    width: 56px; height: 56px;
+    border: 2px dashed var(--brass-dark);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.3s;
+    gap: 2px;
+    background: rgba(30,18,10,0.3);
+  }
+  .device-slot-inline .slot-num {
+    font-size: 9px;
+    opacity: 0.5;
+  }
+  .device-slot-inline .slot-icon {
+    font-size: 20px;
+  }
+  .device-slot-inline .slot-name {
+    font-size: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 54px;
+  }
+  .device-slot-inline.filled {
+    border-style: solid;
+    border-color: var(--glow-gold);
+    background: rgba(201,168,76,0.15);
+    color: var(--glow-gold);
+    box-shadow: 0 0 8px rgba(255,213,79,0.25);
+  }
+  .device-slot-inline:not(.filled) {
+    border-color: rgba(201,168,76,0.3);
+  }
+  .device-slot-inline:not(.filled):hover {
+    border-color: var(--brass);
+    background: rgba(201,168,76,0.08);
+  }
+  /* (device-panel removed - using embedded device-area) */
+
+  /* ── Victory overlay ── */
+  #victory-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  #victory-overlay.active { display: flex; }
+  #victory-text {
+    font-size: 36px;
+    color: var(--glow-gold);
+    letter-spacing: 5px;
+    text-shadow: 0 0 30px rgba(255,213,79,0.6);
+    animation: victoryGlow 2s ease-in-out infinite alternate;
+  }
+  #victory-sub {
+    font-size: 16px;
+    color: var(--parchment);
+    margin-top: 16px;
+    letter-spacing: 2px;
+    opacity: 0.8;
+  }
+  @keyframes victoryGlow {
+    0% { text-shadow: 0 0 20px rgba(255,213,79,0.4); }
+    100% { text-shadow: 0 0 50px rgba(255,213,79,0.8), 0 0 80px rgba(255,213,79,0.3); }
+  }
+  #victory-replay {
+    margin-top: 30px;
+    padding: 10px 30px;
+    background: linear-gradient(180deg, var(--brass) 0%, var(--brass-dark) 100%);
+    color: var(--ink);
+    border: 2px solid var(--brass-light);
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    transition: all 0.3s;
+  }
+  #victory-replay:hover {
+    background: linear-gradient(180deg, var(--brass-light) 0%, var(--brass) 100%);
+    box-shadow: 0 0 20px rgba(201,168,76,0.5);
+    transform: translateY(-2px);
+  }
+
+  /* ── Inspect Tooltip ── */
+  #inspect-tooltip {
+    display: none;
+    position: fixed;
+    padding: 10px 14px;
+    background: rgba(30,18,10,0.95);
+    border: 1px solid var(--brass);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--parchment);
+    max-width: 220px;
+    z-index: 300;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    pointer-events: none;
+  }
+  #inspect-tooltip .tip-name {
+    color: var(--brass-light);
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  #inspect-tooltip .tip-desc { line-height: 1.5; opacity: 0.85; }
+
+  /* ── Symbols overlay (Stage 2) ── */
+  #symbols-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 90;
+    pointer-events: none;
+  }
+  #symbols-overlay.active { display: block; }
+  .hidden-symbol {
+    position: absolute;
+    font-size: 28px;
+    color: var(--glow-gold);
+    text-shadow: 0 0 12px rgba(255,213,79,0.6);
+    opacity: 0;
+    animation: symbolReveal 3s ease forwards;
+    pointer-events: none;
+  }
+  @keyframes symbolReveal {
+    0% { opacity: 0; filter: blur(8px); }
+    30% { opacity: 0.8; filter: blur(0); }
+    80% { opacity: 0.8; }
+    100% { opacity: 0; filter: blur(4px); }
+  }
+
+  /* ── Cauldron contents indicator ── */
+  #contents-list {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    text-align: center;
+    min-height: 18px;
+    z-index: 3;
+  }
+  #contents-list span { margin: 0 4px; }
+
+  /* ── Brew Progress Bar ── */
+  #brew-progress {
+    width: 160px;
+    height: 6px;
+    background: rgba(30,18,10,0.8);
+    border: 1px solid var(--brass-dark);
+    border-radius: 3px;
+    overflow: hidden;
+    z-index: 3;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #brew-progress.active { opacity: 1; }
+  #brew-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--brass), var(--glow-gold));
+    border-radius: 3px;
+    transition: width 0.1s linear;
+  }
+
+  /* ── Material Drop Animation ── */
+  .material-drop {
+    position: absolute;
+    font-size: 24px;
+    z-index: 10;
+    animation: matDrop 0.8s ease-in forwards;
+    pointer-events: none;
+  }
+  @keyframes matDrop {
+    0% { transform: translateY(-60px) scale(1.3); opacity: 1; }
+    60% { transform: translateY(10px) scale(0.8); opacity: 0.8; }
+    100% { transform: translateY(30px) scale(0.3); opacity: 0; }
+  }
+
+  /* ── Stir Count Indicator ── */
+  #stir-count {
+    font-size: 11px;
+    color: var(--brass);
+    z-index: 3;
+    min-height: 16px;
+    text-align: center;
+    opacity: 0.7;
+  }
+
+  /* ── Cauldron State Overlay ── */
+  #cauldron-state-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 0 0 90px 90px;
+    z-index: 4;
+    pointer-events: none;
+    transition: box-shadow 0.8s ease;
+  }
+  #cauldron-state-overlay.brewing {
+    animation: brewPulse 1s ease-in-out infinite;
+  }
+  #cauldron-state-overlay.success {
+    box-shadow: inset 0 0 30px rgba(129,199,132,0.4);
+  }
+  #cauldron-state-overlay.failure {
+    box-shadow: inset 0 0 30px rgba(239,83,80,0.4);
+  }
+  @keyframes brewPulse {
+    0%,100% { box-shadow: inset 0 0 15px rgba(255,213,79,0.2); }
+    50% { box-shadow: inset 0 0 25px rgba(255,213,79,0.5); }
+  }
+
+  /* ── Temperature Reaction Indicator ── */
+  #temp-reaction {
+    font-size: 10px;
+    color: var(--text-dim);
+    z-index: 3;
+    min-height: 14px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  #temp-reaction.visible { opacity: 0.8; }
+
+  /* ── Stage Transition Overlay ── */
+  #stage-transition {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.92);
+    z-index: 250;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  #stage-transition.active {
+    display: flex;
+    opacity: 1;
+  }
+  #stage-transition.fade-out {
+    opacity: 0;
+  }
+  #stage-transition .st-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    animation: stIconFloat 2s ease-in-out infinite;
+  }
+  @keyframes stIconFloat {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  #stage-transition .st-title {
+    font-size: 32px;
+    color: var(--glow-gold);
+    letter-spacing: 4px;
+    text-shadow: 0 0 30px rgba(255,213,79,0.6);
+    margin-bottom: 12px;
+  }
+  #stage-transition .st-num {
+    font-size: 14px;
+    color: var(--brass);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  #stage-transition .st-desc {
+    font-size: 15px;
+    color: var(--text-light);
+    max-width: 400px;
+    text-align: center;
+    line-height: 1.8;
+    opacity: 0.8;
+    margin-bottom: 28px;
+  }
+  #stage-transition .st-btn {
+    padding: 10px 36px;
+    background: linear-gradient(180deg, var(--brass) 0%, var(--brass-dark) 100%);
+    color: var(--ink);
+    border: 2px solid var(--brass-light);
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    transition: all 0.3s;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  }
+  #stage-transition .st-btn:hover {
+    background: linear-gradient(180deg, var(--brass-light) 0%, var(--brass) 100%);
+    box-shadow: 0 0 20px rgba(201,168,76,0.5);
+    transform: translateY(-2px);
+  }
+
+  /* ── Stage Objective Bar ── */
+  #stage-objective {
+    display: none;
+    width: 100%;
+    padding: 6px 20px;
+    background: rgba(30,18,10,0.85);
+    border: 1px solid var(--brass-dark);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--brass-light);
+    letter-spacing: 1px;
+    text-align: center;
+    white-space: normal;
+    word-break: keep-all;
+    overflow: visible;
+    box-sizing: border-box;
+  }
+  #stage-objective.active { display: block; }
+  #stage-objective .obj-icon { margin-right: 6px; }
+
+  /* ── Reset ── */
+  #reset-btn {
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+    z-index: 3;
+    text-decoration: underline;
+    opacity: 0.6;
+  }
+  #reset-btn:hover { opacity: 1; color: var(--glow-red); }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <h1>⚗ Tech工坊</h1>
+    <div id="stage-indicator">第 <span id="stage-num">1</span> 阶段 — <span id="stage-name">初启之光</span></div>
+  </div>
+
+  <!-- Left: Materials -->
+  <div id="materials-panel">
+    <div class="panel-title">⚙ 材料架</div>
+    <div id="materials-list"></div>
+  </div>
+
+  <!-- Center: Lab -->
+  <div id="lab-area">
+    <canvas id="dust-canvas"></canvas>
+    <div id="top-hud">
+      <div id="stage-objective"></div>
+      <div id="message-area"></div>
+    </div>
+
+    <div id="cauldron-area">
+      <div id="cauldron-wrapper">
+        <div id="cauldron-rim"></div>
+        <div class="cauldron-handle left"></div>
+        <div class="cauldron-handle right"></div>
+        <div id="cauldron-body">
+          <div id="cauldron-liquid"></div>
+          <div id="cauldron-state-overlay"></div>
+        </div>
+        <div id="stir-indicator"></div>
+        <div id="cauldron-glow"></div>
+        <div id="fire-container">
+          <div class="flame flame-1"></div>
+          <div class="flame flame-2"></div>
+          <div class="flame flame-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="contents-list"></div>
+    <div id="stir-count"></div>
+    <div id="temp-reaction"></div>
+    <div id="brew-progress"><div id="brew-progress-bar"></div></div>
+    <div id="controls">
+      <div id="temp-control">
+        <button class="temp-btn" onclick="adjustTemp(-1)">−</button>
+        <div id="temp-display">温度 <span class="temp-val" id="temp-val">低</span></div>
+        <button class="temp-btn" onclick="adjustTemp(1)">+</button>
+      </div>
+      <button class="ctrl-btn" id="btn-add" onclick="addToCauldron()">投入坩埚</button>
+      <button class="ctrl-btn" id="btn-stir" onclick="stirCauldron()">搅拌</button>
+      <button class="ctrl-btn" id="btn-brew" onclick="brew()">炼制</button>
+      <button class="ctrl-btn" id="btn-clear" onclick="clearCauldron()">清空</button>
+    </div>
+
+    <button id="reset-btn" onclick="resetCauldron()">清空坩埚</button>
+
+    <!-- Embedded Device (Stage 5) -->
+    <div id="device-area">
+      <div id="device-title">🖥️ 远古奥术装置</div>
+      <div id="device-visual-embed">
+        <div class="device-ring r1" id="dr1"></div>
+        <div class="device-ring r2" id="dr2"></div>
+        <div class="device-ring r3" id="dr3"></div>
+        <div class="device-ring r4" id="dr4"></div>
+      </div>
+      <div id="device-slots-row">
+        <div class="device-slot-inline" id="dslot-0" onclick="toggleDeviceSlot(0)"><span class="slot-num">槽 1</span><span class="slot-icon">—</span></div>
+        <div class="device-slot-inline" id="dslot-1" onclick="toggleDeviceSlot(1)"><span class="slot-num">槽 2</span><span class="slot-icon">—</span></div>
+        <div class="device-slot-inline" id="dslot-2" onclick="toggleDeviceSlot(2)"><span class="slot-num">槽 3</span><span class="slot-icon">—</span></div>
+        <div class="device-slot-inline" id="dslot-3" onclick="toggleDeviceSlot(3)"><span class="slot-num">槽 4</span><span class="slot-icon">—</span></div>
+      </div>
+      <div id="device-status-embed">点击背包中的炼成品放入装置槽位</div>
+    </div>
+  </div>
+
+  <!-- Right: Journal -->
+  <div id="journal-panel">
+    <div class="panel-title">📖 炼金术士手札</div>
+    <div id="journal-content"></div>
+  </div>
+
+  <!-- Bottom: Inventory -->
+  <div id="inventory-panel">
+    <div id="inv-label">◼ 背包</div>
+    <div id="inv-slots"></div>
+  </div>
+</div>
+
+
+<!-- Symbols Overlay -->
+<div id="symbols-overlay"></div>
+
+<!-- Stage Transition Overlay -->
+<div id="stage-transition">
+  <div class="st-icon" id="st-icon"></div>
+  <div class="st-num" id="st-num-text"></div>
+  <div class="st-title" id="st-title"></div>
+  <div class="st-desc" id="st-desc"></div>
+  <button class="st-btn" id="st-btn" onclick="dismissStageTransition()">继 续</button>
+</div>
+
+<!-- Victory -->
+<div id="victory-overlay">
+  <div id="victory-text">⚗ Tech复燃 ⚗</div>
+  <div id="victory-sub">古老的炼金装置再次苏醒，法力涌动不息……</div>
+  <button id="victory-replay" onclick="restartGame()">🔄 再来一局</button>
+</div>
+
+<!-- Tooltip -->
+<div id="inspect-tooltip">
+  <div class="tip-name"></div>
+  <div class="tip-desc"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// GAME DATA
+// ══════════════════════════════════════════
+
+const MATERIALS = {
+  water_essence:  { id:'water_essence',  name:'水之精华',   icon:'💧', color:'#4fc3f7', desc:'一瓶纯净而闪烁着微光的水之精华', element:'water' },
+  ash_powder:     { id:'ash_powder',     name:'灰烬粉',      icon:'🌫️', color:'#9e9e9e', desc:'焚烧古老羊皮纸后留下的细腻灰粉', element:'earth' },
+  ember_dust:     { id:'ember_dust',     name:'余烬之尘',      icon:'🔥', color:'#ff8a65', desc:'散发炽热红光的纯粹火焰微粒', element:'fire' },
+  air_crystal:    { id:'air_crystal',    name:'风之晶石',     icon:'💎', color:'#b3e5fc', desc:'通透晶体，内部回荡着低沉的风鸣', element:'air' },
+  crystal_dust:   { id:'crystal_dust',   name:'水晶粉末',    icon:'✨', color:'#ce93d8', desc:'研磨附魔宝石后获得的璀璨粉末', element:'arcane' },
+  metal_fragment: { id:'metal_fragment', name:'黄铜碎片',  icon:'⚙️', color:'#bdbdbd', desc:'一枚古代黄铜机关上脱落的残片', element:'earth' },
+  shadow_extract: { id:'shadow_extract', name:'暗影萃取液', icon:'🌑', color:'#5c6bc0', desc:'从虚空深处汲取的幽暗液体', element:'shadow' },
+  starlight_dew:  { id:'starlight_dew',  name:'星辉露珠',   icon:'⭐', color:'#fff176', desc:'黎明时分从银叶上采集的星之精华', element:'arcane' },
+  phoenix_tear:   { id:'phoenix_tear',   name:'凤凰之泪',    icon:'🧡', color:'#ff7043', desc:'涅槃之火凝结而成的一滴金色泪珠', element:'fire' },
+};
+
+// Element interaction matrix: how materials react to temperature
+const ELEMENT_TEMP_REACTIONS = {
+  water:  { low:'水面平静如镜',  medium:'水开始微微冒泡', high:'水剧烈翻滚沸腾！' },
+  fire:   { low:'火星黯淡，几乎熄灭', medium:'火焰稳定燃烧', high:'烈焰冲天而起！' },
+  air:    { low:'微风轻拂',  medium:'气流呼啸盘旋', high:'狂风呼啸不止！' },
+  earth:  { low:'尘埃缓缓沉淀', medium:'粉末开始溶解', high:'矿石迸裂出火花！' },
+  arcane: { low:'微光若隐若现', medium:'奥术能量脉动不止', high:'魔力激荡，光芒耀眼！' },
+  shadow: { low:'暗影蜷缩不动', medium:'暗影开始扩散蔓延', high:'幽冥之力涌动翻腾！' },
+};
+
+// Element color contributions to liquid
+const ELEMENT_COLORS = {
+  water:  { low:'rgba(79,195,247,0.2)',  medium:'rgba(79,195,247,0.4)',  high:'rgba(79,195,247,0.6)' },
+  fire:   { low:'rgba(255,138,101,0.2)', medium:'rgba(255,138,101,0.4)', high:'rgba(255,87,34,0.5)' },
+  air:    { low:'rgba(179,229,252,0.2)', medium:'rgba(179,229,252,0.3)', high:'rgba(179,229,252,0.5)' },
+  earth:  { low:'rgba(158,158,158,0.2)', medium:'rgba(158,158,158,0.35)',high:'rgba(188,188,188,0.4)' },
+  arcane: { low:'rgba(206,147,216,0.2)', medium:'rgba(206,147,216,0.4)', high:'rgba(186,104,200,0.5)' },
+  shadow: { low:'rgba(92,107,192,0.2)',  medium:'rgba(92,107,192,0.35)', high:'rgba(26,35,126,0.5)' },
+};
+
+// Element conflict pairs - certain combinations at wrong temp cause mini-reactions
+const ELEMENT_CONFLICTS = [
+  { elems:['fire','water'], temp:0, msg:'水浇在冷火上，发出嘶嘶声……', effect:'fizz' },
+  { elems:['fire','water'], temp:2, msg:'水与火激烈碰撞，蒸汽升腾！', effect:'steam' },
+  { elems:['shadow','arcane'], temp:0, msg:'暗影与奥术能量互相排斥……', effect:'fizz' },
+  { elems:['shadow','arcane'], temp:2, msg:'暗影与魔力在高温下激烈融合！', effect:'steam' },
+  { elems:['fire','shadow'], temp:0, msg:'暗影吞噬了残余的火星……', effect:'fizz' },
+  { elems:['air','earth'], temp:2, msg:'狂风卷起粉末，四处飞散！', effect:'steam' },
+];
+
+const CRAFTED = {
+  glowing_solution:   { name:'荧光溶液',    icon:'🧪', color:'#4fc3f7', desc:'散发柔和蓝色微光的液体', stage:1 },
+  purified_salt:      { name:'净化之盐',       icon:'🧂', color:'#e0e0e0', desc:'凝结出的纯净之盐结晶', stage:3 },
+  flame_elixir:       { name:'烈焰灵药',        icon:'🔥', color:'#ff5722', desc:'瓶中燃烧着异世火焰的灵药', stage:3 },
+  void_ink:           { name:'虚空墨水',            icon:'🖋️', color:'#311b92', desc:'能够揭示隐匿真相的墨水', stage:3 },
+  aurora_powder:      { name:'极光之粉',       icon:'🌈', color:'#ba68c8', desc:'色彩流转、令人着迷的粉末', stage:4 },
+  chronos_droplet:    { name:'时之滴露',     icon:'⏳', color:'#26c6da', desc:'一滴液化了的时光', stage:4 },
+};
+
+const STAGES = [
+  { id:1, name:'初启之光',      desc:'炼制一瓶荧光溶液，照亮整个工坊。', icon:'🕯️',
+    objective:'💧 炼制荧光溶液 — 水 → 水晶 → 余烬，中温，搅拌1次' },
+  { id:2, name:'隐秘之识',      desc:'借助荧光之力，揭示墙壁上隐藏的古老符文。', icon:'🔮',
+    objective:'🧪 使用荧光溶液 — 点击背包中的荧光溶液' },
+  { id:3, name:'崭新天地',          desc:'新材料已解锁，炼制三种中级成品。', icon:'⚗️',
+    objective:'🔧 炼制净化之盐、烈焰灵药、虚空墨水 — 查阅右侧手札获取配方' },
+  { id:4, name:'高阶奥术',       desc:'掌控材料顺序与温度，炼制高级混合物。', icon:'✨',
+    objective:'🌈 炼制极光之粉和时之滴露 — 注意顺序与温度，详见手札' },
+  { id:5, name:'奥术装置',    desc:'以你的炼成品激活远古装置。', icon:'🖥️',
+    objective:'🖥️ 打开装置，放入四个炼成品' },
+];
+
+const JOURNAL_ENTRIES = [
+  { stage:0, title:'第一日 — 初入工坊之夜',
+    text:'老炼金术士只留下了这本手札和一口坩埚。空气中弥漫着干枯草药与陈旧黄铜的气息。这处阴影之中，似有某种力量在低语。',
+    hint:'或许该从最简单的事物开始……水，是万物之源。' },
+  { stage:1, title:'微光回忆',
+    text:'「水承载光华。加一撮研磨细腻的水晶之粉，再施以适度的温热——但不可过多。混合液须轻柔搅拌，如安抚躁动的灵魂。」',
+    hint:'想想「不可过多」对温度旋钮意味着什么。' },
+  { stage:1, title:'关于光照的注解',
+    text:'「我想起来了。水为先，其次水晶，余烬殿后。顺序神圣不可颠倒。以温和之火和一次轻搅——仅此而已。」',
+    hint:'顺序至关重要：水之精华 → 水晶粉末 → 余烬之尘。' },
+  { stage:2, title:'符文之谜',
+    text:'「当液体发光之时，将其泼洒于工坊四壁。古老的刻痕将浮出水面——那是通往更高深技艺的钥匙。」',
+    hint:'查看背包中的荧光溶液并使用它。' },
+  { stage:3, title:'开启暗柜',
+    text:'「符文揭示了一个隐藏的夹层！其中盛放着我从未见过的材料：暗影萃取液、星辉露珠，还有一滴凤凰之泪。这些定然极为重要。」',
+    hint:'新材料已在材料架上解锁。' },
+  { stage:3, title:'净化之术',
+    text:'「欲净化，须将水与旧识之灰烬相融。中度火候，勿施搅拌——让元素自行沉淀。」',
+    hint:'水之精华 + 灰烬粉，中温，不搅拌。' },
+  { stage:3, title:'火与影',
+    text:'「孤火自焚，唯以暗影淬炼方能升华。须高温将二者熔合。搅拌两回——一为烈焰，二为幽影。」',
+    hint:'余烬之尘 + 暗影萃取液，高温，搅拌。' },
+  { stage:3, title:'真实之墨',
+    text:'「唯有烈火先于风息苏醒，暗影方能吐露其秘密。高温熬煮，轻搅一次，便得虚空墨水。」',
+    hint:'先余烬之尘，再风之晶石 + 暗影萃取液。高温，搅拌。' },
+  { stage:4, title:'极光汇流',
+    text:'「星辉遇水晶，再会暗影——三者须于中度火候下合一。顺序精妙：先光，再晶，终为幽冥。搅拌一次以束之。」',
+    hint:'星辉露珠 → 水晶粉末 → 暗影萃取液。中温，搅拌。' },
+  { stage:4, title:'时光之滴',
+    text:'「凤凰之火与水，在风息的纽带下合为一体。高温熔炼，搅拌一回。时间本身在坩埚中弯曲。」',
+    hint:'凤凰之泪 → 水之精华 → 风之晶石。高温，搅拌。' },
+  { stage:5, title:'奥术装置',
+    text:'「工坊角落的那台装置……它有四个凹槽。每个凹槽都需放入特定的炼成品。净化之盐用于固基，烈焰灵药供给能量，虚空墨水铭刻符文，极光之粉点燃最终的火花。」',
+    hint:'打开装置，依次放入：净化之盐、烈焰灵药、虚空墨水、极光之粉。' },
+];
+
+// ══════════════════════════════════════════
+// RECIPES
+// ══════════════════════════════════════════
+// Each recipe: { ingredients, sequence, temp, stirMin, stirMax, result, stage, failMsg, brewTime }
+// stirMin/stirMax define the range of allowed stir counts (inclusive)
+
+const RECIPES = [
+  // Stage 1: Glowing Solution
+  {
+    ingredients: [['water_essence',1],['crystal_dust',1],['ember_dust',1]],
+    sequence: ['water_essence','crystal_dust','ember_dust'],
+    temp: 1, // medium
+    stirMin: 1, stirMax: 1,
+    result: 'glowing_solution',
+    stage: 1,
+    liquidColor: 'radial-gradient(ellipse at 40% 40%, #81d4fa, #4fc3f7, #0288d1)',
+    glowColor: 'rgba(79,195,247,0.35)',
+    successMsg: '液体泛起柔和的蓝色光芒！你成功炼制了荧光溶液。',
+    failMsg: '混合液嘶嘶作响，转为黯淡。换个方式试试——翻阅手札寻找线索。',
+    brewTime: 2500,
+  },
+  // Stage 3: Purified Salt
+  {
+    ingredients: [['water_essence',1],['ash_powder',1]],
+    sequence: ['water_essence','ash_powder'],
+    temp: 1, // medium
+    stirMin: 0, stirMax: 0,
+    result: 'purified_salt',
+    stage: 3,
+    liquidColor: 'radial-gradient(ellipse at 50% 50%, #eeeeee, #bdbdbd, #9e9e9e)',
+    glowColor: 'rgba(224,224,224,0.25)',
+    successMsg: '坩埚底部析出晶体——净化之盐！纯净之力，凝练于指尖。',
+    failMsg: '杂质不肯沉淀。或许温度或搅拌方式需要调整。',
+    brewTime: 2000,
+  },
+  // Stage 3: Flame Elixir
+  {
+    ingredients: [['ember_dust',1],['shadow_extract',1]],
+    sequence: ['ember_dust','shadow_extract'],
+    temp: 2, // high
+    stirMin: 1, stirMax: 1,
+    result: 'flame_elixir',
+    stage: 3,
+    liquidColor: 'radial-gradient(ellipse at 50% 50%, #ff8a65, #ff5722, #d84315)',
+    glowColor: 'rgba(255,87,34,0.35)',
+    successMsg: '瓶中咆哮着一团火焰——烈焰灵药！火焰化为了实质。',
+    failMsg: '火焰噼啪几声便熄灭了。高温和正确的顺序缺一不可。',
+    brewTime: 3000,
+  },
+  // Stage 3: Void Ink
+  {
+    ingredients: [['ember_dust',1],['air_crystal',1],['shadow_extract',1]],
+    sequence: ['ember_dust','air_crystal','shadow_extract'],
+    temp: 2, // high
+    stirMin: 1, stirMax: 2,
+    result: 'void_ink',
+    stage: 3,
+    liquidColor: 'radial-gradient(ellipse at 50% 50%, #5c6bc0, #3949ab, #1a237e)',
+    glowColor: 'rgba(26,35,126,0.35)',
+    successMsg: '幽暗的深渊在坩埚中汇聚——虚空墨水，可揭示隐匿之真相！',
+    failMsg: '暗影退缩了。须以烈焰为首，继之清风，终以幽冥。',
+    brewTime: 3000,
+  },
+  // Stage 4: Aurora Powder
+  {
+    ingredients: [['starlight_dew',1],['crystal_dust',1],['shadow_extract',1]],
+    sequence: ['starlight_dew','crystal_dust','shadow_extract'],
+    temp: 1, // medium
+    stirMin: 1, stirMax: 1,
+    result: 'aurora_powder',
+    stage: 4,
+    liquidColor: 'radial-gradient(ellipse at 50% 50%, #ce93d8, #ba68c8, #7b1fa2)',
+    glowColor: 'rgba(186,104,200,0.35)',
+    successMsg: '绚烂的色彩喷涌而出——极光之粉！光华本身在起舞。',
+    failMsg: '色彩拒绝融合。顺序须为：先光，再晶，终为幽冥。',
+    brewTime: 3500,
+  },
+  // Stage 4: Chronos Droplet
+  {
+    ingredients: [['phoenix_tear',1],['water_essence',1],['air_crystal',1]],
+    sequence: ['phoenix_tear','water_essence','air_crystal'],
+    temp: 2, // high
+    stirMin: 1, stirMax: 1,
+    result: 'chronos_droplet',
+    stage: 4,
+    liquidColor: 'radial-gradient(ellipse at 50% 50%, #4dd0e1, #00acc1, #00838f)',
+    glowColor: 'rgba(0,188,212,0.35)',
+    successMsg: '时间仿佛凝固——时之滴露成形了！一滴液化了的时光！',
+    failMsg: '时空之力消散了。凤凰之火，再水，再风——于高温之下。',
+    brewTime: 4000,
+  },
+];
+
+// ══════════════════════════════════════════
+// GAME STATE
+// ══════════════════════════════════════════
+
+const state = {
+  currentStage: 1,
+  unlockedMaterials: ['water_essence','ash_powder','ember_dust','air_crystal','crystal_dust','metal_fragment'],
+  inventory: [],       // crafted items: ['glowing_solution', ...]
+  materialStock: {},   // id -> count (limited supply)
+  cauldron: {
+    contents: [],      // [{id, name}] order matters
+    temperature: 0,    // 0=low, 1=medium, 2=high
+    stirCount: 0,      // number of stirs performed
+    state: 'empty',    // empty, brewing, success, failure
+    liquidColor: null,
+    glowColor: null,
+  },
+  selectedMaterial: null,
+  journalUnlocked: [0], // indices of unlocked journal entries
+  deviceSlots: [null,null,null,null], // crafted item IDs for device
+  deviceRequired: ['purified_salt','flame_elixir','void_ink','aurora_powder'],
+  deviceOrder: ['purified_salt','flame_elixir','void_ink','aurora_powder'],
+  gameWon: false,
+  brewTimer: null,      // reference to active brew animation
+  conflictCooldown: {}, // element pair -> timestamp to prevent spam
+  stageCompleted: {},   // stageId -> boolean — track per-stage completion
+};
+
+// Initialize material stock — limited quantities for realism
+const INITIAL_STOCK = {
+  water_essence: 8,
+  ash_powder: 6,
+  ember_dust: 6,
+  air_crystal: 5,
+  crystal_dust: 5,
+  metal_fragment: 4,
+  shadow_extract: 5,
+  starlight_dew: 4,
+  phoenix_tear: 3,
+};
+Object.keys(INITIAL_STOCK).forEach(k => state.materialStock[k] = INITIAL_STOCK[k]);
+
+// ══════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════
+
+function renderMaterials() {
+  const list = document.getElementById('materials-list');
+  list.innerHTML = '';
+  Object.values(MATERIALS).forEach(mat => {
+    const unlocked = state.unlockedMaterials.includes(mat.id);
+    const selected = state.selectedMaterial === mat.id;
+    const stock = state.materialStock[mat.id] || 0;
+    const outOfStock = unlocked && stock <= 0;
+    const div = document.createElement('div');
+    div.className = 'material-item' + (!unlocked || outOfStock ? ' locked' : '') + (selected ? ' selected' : '');
+    div.innerHTML = `
+      <div class="mat-icon" style="background:${mat.color}22; border:1px solid ${mat.color}55">${mat.icon}</div>
+      <div>
+        <div class="mat-name">${unlocked ? mat.name : '???'}</div>
+        <div class="mat-desc">${unlocked ? (outOfStock ? '库存耗尽' : mat.desc) : '???'}</div>
+      </div>
+      ${!unlocked ? '<span class="mat-locked-label">🔒</span>' : ''}
+      ${unlocked && !outOfStock ? '<span class="mat-locked-label" style="color:var(--brass);font-size:9px">x' + stock + '</span>' : ''}
+      ${outOfStock ? '<span class="mat-locked-label" style="font-size:9px">✕</span>' : ''}
+    `;
+    if (unlocked && !outOfStock) {
+      div.onclick = () => selectMaterial(mat.id);
+      div.oncontextmenu = (e) => { e.preventDefault(); showInspect(e, mat.name, mat.desc + (stock <= 2 ? ' [仅剩' + stock + '份]' : '')); };
+    }
+    list.appendChild(div);
+  });
+}
+
+function renderJournal() {
+  const cont = document.getElementById('journal-content');
+  cont.innerHTML = '';
+  JOURNAL_ENTRIES.forEach((entry, i) => {
+    const unlocked = i === 0 || state.journalUnlocked.includes(i);
+    const div = document.createElement('div');
+    div.className = 'journal-entry' + (unlocked ? '' : ' locked');
+    div.innerHTML = `
+      <div class="journal-entry-title">${unlocked ? entry.title : '🔒 ???'}</div>
+      ${unlocked ? `<div class="journal-entry-text">"${entry.text}"</div>` +
+        (entry.hint ? `<div class="journal-entry-hint">💭 ${entry.hint}</div>` : '') : ''}
+    `;
+    cont.appendChild(div);
+  });
+  // Scroll to bottom to show latest
+  cont.scrollTop = cont.scrollHeight;
+}
+
+function renderInventory() {
+  const slots = document.getElementById('inv-slots');
+  slots.innerHTML = '';
+  if (state.inventory.length === 0) {
+    slots.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:20px;text-align:center;width:100%;opacity:0.5">尚未获得任何物品，开始炼制吧！</div>';
+    return;
+  }
+  state.inventory.forEach(itemId => {
+    const item = CRAFTED[itemId];
+    if (!item) return;
+    const isDeviceNeeded = state.currentStage >= 5 && state.deviceOrder.includes(itemId) && !state.deviceSlots.includes(itemId);
+    const isUsable = state.currentStage === 2 && itemId === 'glowing_solution';
+    const div = document.createElement('div');
+    div.className = 'inv-slot' + (isUsable ? ' usable' : '') + (isDeviceNeeded ? ' craftable' : '');
+    div.innerHTML = `
+      <span class="inv-icon">${item.icon}</span>
+      <span class="inv-label">${item.name}</span>
+      ${isDeviceNeeded ? '<span style="font-size:9px;color:var(--glow-gold);opacity:0.8">点击放入</span>' : ''}
+    `;
+    div.onclick = () => {
+      if (state.currentStage === 2 && itemId === 'glowing_solution') {
+        useInventoryItem(itemId);
+      } else if (state.currentStage >= 5 && state.deviceOrder.includes(itemId)) {
+        placeDeviceItem(itemId);
+      } else {
+        showInspect(event, item.name, item.desc);
+      }
+    };
+    slots.appendChild(div);
+  });
+}
+
+function renderStageInfo() {
+  const s = STAGES[state.currentStage - 1] || STAGES[0];
+  document.getElementById('stage-num').textContent = state.currentStage;
+  document.getElementById('stage-name').textContent = s.name;
+}
+
+function renderCauldronContents() {
+  const el = document.getElementById('contents-list');
+  if (state.cauldron.contents.length === 0) {
+    el.innerHTML = '<span style="opacity:0.4">空</span>';
+  } else {
+    el.innerHTML = state.cauldron.contents.map(c => {
+      const mat = MATERIALS[c.id];
+      return `<span style="color:${mat ? mat.color : '#fff'}">${mat ? mat.icon : '?'} ${c.name}</span>`;
+    }).join(' → ');
+  }
+}
+
+function renderAll() {
+  renderMaterials();
+  renderJournal();
+  renderInventory();
+  renderStageInfo();
+  renderCauldronContents();
+  updateDeviceButton();
+}
+
+// ══════════════════════════════════════════
+// CAULDRron VISUALS
+// ══════════════════════════════════════════
+
+let bubbleInterval = null;
+
+function updateCauldronVisuals() {
+  const liquid = document.getElementById('cauldron-liquid');
+  const glow = document.getElementById('cauldron-glow');
+  const fire = document.getElementById('fire-container');
+  const tempLabels = ['低', '中', '高'];
+
+  // Temperature visuals — fire intensity
+  fire.classList.toggle('active', state.cauldron.temperature >= 1);
+  if (state.cauldron.temperature === 2) {
+    fire.style.transform = 'translateX(-50%) scale(1.2)';
+    fire.style.opacity = '1';
+  } else if (state.cauldron.temperature === 1) {
+    fire.style.transform = 'translateX(-50%) scale(1)';
+    fire.style.opacity = '1';
+  }
+
+  // Liquid color — blend based on element types + temperature
+  if (state.cauldron.liquidColor) {
+    liquid.style.background = state.cauldron.liquidColor;
+    liquid.style.opacity = '1';
+  } else if (state.cauldron.contents.length > 0) {
+    // Dynamic color mixing based on elements present and temperature
+    const tempKey = tempLabels[state.cauldron.temperature];
+    const elements = [...new Set(state.cauldron.contents.map(c => MATERIALS[c.id]?.element).filter(Boolean))];
+    if (elements.length > 0) {
+      const colorParts = elements.map(e => ELEMENT_COLORS[e]?.[tempKey] || 'rgba(80,80,80,0.2)');
+      liquid.style.background = `linear-gradient(135deg, ${colorParts.join(', ')}, rgba(20,15,30,0.8))`;
+      liquid.style.opacity = Math.min(0.6 + elements.length * 0.1, 0.9);
+    }
+  } else {
+    liquid.style.background = 'rgba(30,30,50,0.6)';
+    liquid.style.opacity = '1';
+  }
+
+  // Glow — stronger with more materials and higher temp
+  if (state.cauldron.glowColor) {
+    glow.style.background = state.cauldron.glowColor;
+    glow.style.width = '220px';
+  } else {
+    const intensity = state.cauldron.contents.length * (state.cauldron.temperature + 1) * 0.04;
+    glow.style.background = `rgba(79,195,247,${Math.min(intensity, 0.3)})`;
+    glow.style.width = (140 + state.cauldron.contents.length * 15) + 'px';
+  }
+
+  // Bubbles — rate depends on temperature + number of contents
+  if (state.cauldron.contents.length > 0) {
+    const rate = (state.cauldron.temperature + 1) * state.cauldron.contents.length;
+    startBubbles(rate);
+  } else {
+    stopBubbles();
+  }
+
+  // Show temperature reaction text for current materials
+  updateTempReaction();
+
+  // Update stir count display
+  updateStirDisplay();
+
+  // Cauldron state overlay
+  const overlay = document.getElementById('cauldron-state-overlay');
+  overlay.className = '';
+  if (state.cauldron.state === 'brewing') overlay.classList.add('brewing');
+  if (state.cauldron.state === 'success') overlay.classList.add('success');
+  if (state.cauldron.state === 'failure') overlay.classList.add('failure');
+}
+
+function stopBubbles() {
+  if (bubbleInterval) { clearInterval(bubbleInterval); bubbleInterval = null; }
+}
+
+function startBubbles(rate) {
+  if (bubbleInterval) clearInterval(bubbleInterval);
+  const interval = Math.max(800 / (rate || 1), 80);
+  bubbleInterval = setInterval(() => {
+    if (state.cauldron.state === 'empty') { stopBubbles(); return; }
+    spawnBubble();
+  }, interval);
+}
+
+function spawnBubble() {
+  const liquid = document.getElementById('cauldron-liquid');
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  const size = 4 + Math.random() * 10;
+  const left = 10 + Math.random() * 120;
+  b.style.width = size + 'px';
+  b.style.height = size + 'px';
+  b.style.left = left + 'px';
+  b.style.bottom = '10px';
+  b.style.animationDuration = (1 + Math.random() * 1.5) + 's';
+  liquid.appendChild(b);
+  setTimeout(() => b.remove(), 3000);
+}
+
+function showExplosion() {
+  const wrapper = document.getElementById('cauldron-wrapper');
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'explosion-particle';
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 60 + Math.random() * 100;
+    p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--dy', Math.sin(angle) * dist - 40 + 'px');
+    p.style.background = ['#ef5350','#ff8a65','#ffc107','#9e9e9e'][Math.floor(Math.random()*4)];
+    p.style.left = '100px';
+    p.style.top = '100px';
+    wrapper.appendChild(p);
+    setTimeout(() => p.remove(), 900);
+  }
+  // Shake
+  wrapper.style.animation = 'none';
+  wrapper.offsetHeight;
+  wrapper.style.animation = 'shake 0.4s ease';
+  setTimeout(() => wrapper.style.animation = 'none', 500);
+}
+
+// Add shake keyframe
+const shakeStyle = document.createElement('style');
+shakeStyle.textContent = `
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}`;
+document.head.appendChild(shakeStyle);
+
+function showSmoke() {
+  const body = document.getElementById('cauldron-body');
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement('div');
+    s.className = 'smoke-particle';
+    s.style.width = (15 + Math.random() * 20) + 'px';
+    s.style.height = s.style.width;
+    s.style.left = (60 + Math.random() * 60) + 'px';
+    s.style.top = '0px';
+    s.style.animationDelay = (Math.random() * 0.5) + 's';
+    body.appendChild(s);
+    setTimeout(() => s.remove(), 2500);
+  }
+}
+
+function showSuccessEffect(color) {
+  const wrapper = document.getElementById('cauldron-wrapper');
+  for (let i = 0; i < 15; i++) {
+    const p = document.createElement('div');
+    p.className = 'explosion-particle';
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 40 + Math.random() * 80;
+    p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--dy', Math.sin(angle) * dist - 30 + 'px');
+    p.style.background = color || '#ffd54f';
+    p.style.left = '100px';
+    p.style.top = '80px';
+    p.style.width = '6px';
+    p.style.height = '6px';
+    wrapper.appendChild(p);
+    setTimeout(() => p.remove(), 900);
+  }
+}
+
+// ══════════════════════════════════════════
+// GAME ACTIONS
+// ══════════════════════════════════════════
+
+function selectMaterial(id) {
+  if (state.cauldron.state === 'brewing') {
+    showMessage('炼制进行中，无法更换材料。', 'info');
+    return;
+  }
+  if (state.selectedMaterial === id) {
+    state.selectedMaterial = null;
+  } else {
+    state.selectedMaterial = id;
+  }
+  renderMaterials();
+}
+
+function addToCauldron() {
+  if (!state.selectedMaterial) {
+    showMessage('请先从材料架上选择一种材料。', 'info');
+    return;
+  }
+  if (state.cauldron.state === 'brewing') {
+    showMessage('炼制进行中，无法添加材料。', 'info');
+    return;
+  }
+  if (state.cauldron.contents.length >= 4) {
+    showMessage('坩埚已满！请先清空或炼制。', 'info');
+    return;
+  }
+  const mat = MATERIALS[state.selectedMaterial];
+  const stock = state.materialStock[mat.id] || 0;
+  if (stock <= 0) {
+    showMessage('「' + mat.name + '」库存耗尽了！', 'failure');
+    state.selectedMaterial = null;
+    renderMaterials();
+    return;
+  }
+  // Consume one unit
+  state.materialStock[mat.id] = stock - 1;
+  state.cauldron.contents.push({ id: mat.id, name: mat.name });
+  showMessage(`已将「${mat.name}」投入坩埚。（剩余 ${stock - 1}）`, 'info');
+  state.selectedMaterial = null;
+
+  // Material drop animation
+  showMaterialDrop(mat.icon);
+  // Check for element conflicts
+  setTimeout(() => checkElementConflicts(), 400);
+  // Update liquid level visual (liquid rises as more items added)
+  const liquid = document.getElementById('cauldron-liquid');
+  liquid.style.height = Math.min(40 + state.cauldron.contents.length * 12, 85) + '%';
+
+  renderMaterials();
+  renderCauldronContents();
+  updateCauldronVisuals();
+}
+
+function showMaterialDrop(icon) {
+  const wrapper = document.getElementById('cauldron-wrapper');
+  const drop = document.createElement('div');
+  drop.className = 'material-drop';
+  drop.textContent = icon;
+  drop.style.left = (85 + Math.random() * 50) + 'px';
+  drop.style.top = '40px';
+  wrapper.appendChild(drop);
+  setTimeout(() => drop.remove(), 900);
+}
+
+function updateTempReaction() {
+  const el = document.getElementById('temp-reaction');
+  if (state.cauldron.contents.length === 0) {
+    el.classList.remove('visible');
+    return;
+  }
+  const tempLabels = ['low', 'medium', 'high'];
+  const tempKey = tempLabels[state.cauldron.temperature];
+  const lastMat = state.cauldron.contents[state.cauldron.contents.length - 1];
+  const element = MATERIALS[lastMat.id]?.element;
+  if (element && ELEMENT_TEMP_REACTIONS[element]) {
+    el.textContent = ELEMENT_TEMP_REACTIONS[element][tempKey];
+    el.classList.add('visible');
+    // Color based on temperature
+    const colors = ['#4fc3f7', '#ffd54f', '#ef5350'];
+    el.style.color = colors[state.cauldron.temperature];
+  }
+}
+
+function updateStirDisplay() {
+  const el = document.getElementById('stir-count');
+  if (state.cauldron.stirCount > 0) {
+    el.textContent = '🌀 搅拌次数: ' + state.cauldron.stirCount;
+  } else {
+    el.textContent = '';
+  }
+}
+
+function checkElementConflicts() {
+  if (state.cauldron.contents.length < 2) return;
+  const now = Date.now();
+  const elements = state.cauldron.contents.map(c => MATERIALS[c.id]?.element).filter(Boolean);
+  const uniqueElems = [...new Set(elements)];
+
+  for (const conflict of ELEMENT_CONFLICTS) {
+    if (uniqueElems.includes(conflict.elems[0]) && uniqueElems.includes(conflict.elems[1])) {
+      if (conflict.temp !== undefined && conflict.temp !== state.cauldron.temperature) continue;
+      const key = conflict.elems.sort().join('+');
+      if (state.conflictCooldown[key] && now - state.conflictCooldown[key] < 3000) continue;
+      state.conflictCooldown[key] = now;
+      showMessage(conflict.msg, 'hint');
+      if (conflict.effect === 'fizz') showFizzEffect();
+      if (conflict.effect === 'steam') showSteamEffect();
+      break; // only one conflict at a time
+    }
+  }
+}
+
+function showFizzEffect() {
+  const body = document.getElementById('cauldron-body');
+  for (let i = 0; i < 8; i++) {
+    const s = document.createElement('div');
+    s.className = 'smoke-particle';
+    s.style.width = (5 + Math.random() * 8) + 'px';
+    s.style.height = s.style.width;
+    s.style.left = (40 + Math.random() * 100) + 'px';
+    s.style.top = '10px';
+    s.style.background = 'rgba(150,200,255,0.3)';
+    s.style.animationDelay = (Math.random() * 0.3) + 's';
+    s.style.animationDuration = '1s';
+    body.appendChild(s);
+    setTimeout(() => s.remove(), 1500);
+  }
+}
+
+function showSteamEffect() {
+  const body = document.getElementById('cauldron-body');
+  for (let i = 0; i < 10; i++) {
+    const s = document.createElement('div');
+    s.className = 'smoke-particle';
+    s.style.width = (12 + Math.random() * 18) + 'px';
+    s.style.height = s.style.width;
+    s.style.left = (30 + Math.random() * 120) + 'px';
+    s.style.top = '-5px';
+    s.style.animationDelay = (Math.random() * 0.4) + 's';
+    s.style.animationDuration = '2.5s';
+    body.appendChild(s);
+    setTimeout(() => s.remove(), 3000);
+  }
+}
+
+function adjustTemp(delta) {
+  if (state.cauldron.state === 'brewing') {
+    showMessage('炼制中无法调节温度。', 'info');
+    return;
+  }
+  const t = state.cauldron.temperature;
+  const newVal = Math.max(0, Math.min(2, t + delta));
+  if (newVal === t) return;
+  state.cauldron.temperature = newVal;
+  const labels = ['低', '中', '高'];
+  const colors = ['#4fc3f7', '#ffd54f', '#ef5350'];
+  document.getElementById('temp-val').textContent = labels[newVal];
+  document.getElementById('temp-val').style.color = colors[newVal];
+
+  // Temperature change visual feedback
+  if (state.cauldron.contents.length > 0) {
+    if (delta > 0) {
+      showMessage('🔥 温度升至 ' + labels[newVal], 'info');
+    } else {
+      showMessage('❄ 温度降至 ' + labels[newVal], 'info');
+    }
+    checkElementConflicts();
+  }
+  updateCauldronVisuals();
+}
+
+function stirCauldron() {
+  if (state.cauldron.contents.length === 0) {
+    showMessage('坩埚里没有什么可搅拌的。', 'info');
+    return;
+  }
+  if (state.cauldron.state === 'brewing') {
+    showMessage('炼制中无需搅拌。', 'info');
+    return;
+  }
+  state.cauldron.stirCount++;
+  const ind = document.getElementById('stir-indicator');
+  ind.classList.remove('stirring');
+  void ind.offsetWidth;
+  ind.classList.add('stirring');
+  setTimeout(() => ind.classList.remove('stirring'), 1300);
+
+  const count = state.cauldron.stirCount;
+  if (count === 1) {
+    showMessage('你轻轻搅拌了坩埚……', 'info');
+  } else if (count === 2) {
+    showMessage('你再次搅拌，液体开始旋转……', 'info');
+  } else if (count === 3) {
+    showMessage('液体剧烈旋转，漩涡形成！', 'hint');
+    // Extra visual: brief whirlpool effect
+    const liquid = document.getElementById('cauldron-liquid');
+    liquid.style.transition = 'transform 0.5s';
+    liquid.style.transform = 'rotate(5deg)';
+    setTimeout(() => { liquid.style.transform = 'rotate(0deg)'; }, 500);
+  } else {
+    showMessage('搅拌了 ' + count + ' 次……液体似乎过度混乱了。', 'info');
+  }
+  updateStirDisplay();
+}
+
+function brew() {
+  if (state.currentStage === 2) {
+    showMessage('现在不是炼制的时候……试试点击背包中的荧光溶液？', 'hint');
+    return;
+  }
+  if (state.cauldron.contents.length === 0) {
+    showMessage('坩埚是空的。请先投入材料。', 'info');
+    return;
+  }
+  if (state.cauldron.state === 'brewing') {
+    showMessage('炼制已在进行中……请耐心等待。', 'info');
+    return;
+  }
+  state.cauldron.state = 'brewing';
+
+  // Disable controls during brewing
+  document.getElementById('btn-add').disabled = true;
+  document.getElementById('btn-brew').disabled = true;
+
+  // Find matching recipe
+  const recipe = findMatchingRecipe();
+  const brewTime = recipe ? (recipe.brewTime || 2500) : 2000;
+
+  // Start brew progress bar
+  runBrewProgress(brewTime);
+
+  if (recipe) {
+    // Success!
+    setTimeout(() => {
+      state.cauldron.state = 'success';
+      state.cauldron.liquidColor = recipe.liquidColor;
+      state.cauldron.glowColor = recipe.glowColor;
+      updateCauldronVisuals();
+      showSuccessEffect(recipe.liquidColor.match(/[\w#]+/g)[1] || '#ffd54f');
+      showMessage(recipe.successMsg, 'success');
+
+      // Add to inventory if not already there
+      if (!state.inventory.includes(recipe.result)) {
+        state.inventory.push(recipe.result);
+      }
+      renderInventory();
+
+      // Re-enable controls
+      document.getElementById('btn-add').disabled = false;
+      document.getElementById('btn-brew').disabled = false;
+
+      // Check stage progression
+      setTimeout(() => checkStageProgress(recipe), 800);
+    }, brewTime);
+  } else {
+    // Failure
+    setTimeout(() => {
+      state.cauldron.state = 'failure';
+      showExplosion();
+      showSmoke();
+      showMessage(findFailReason() || '实验失败了。混合物极不稳定。', 'failure');
+      // Re-enable controls
+      document.getElementById('btn-add').disabled = false;
+      document.getElementById('btn-brew').disabled = false;
+      // Reset after delay
+      setTimeout(() => {
+        resetCauldronVisuals();
+      }, 2000);
+    }, brewTime);
+  }
+}
+
+function runBrewProgress(duration) {
+  const bar = document.getElementById('brew-progress');
+  const fill = document.getElementById('brew-progress-bar');
+  bar.classList.add('active');
+  fill.style.width = '0%';
+  fill.style.transition = 'none';
+
+  // Force reflow
+  void fill.offsetWidth;
+  fill.style.transition = `width ${duration}ms linear`;
+  fill.style.width = '100%';
+
+  setTimeout(() => {
+    bar.classList.remove('active');
+    fill.style.width = '0%';
+  }, duration + 200);
+}
+
+function findMatchingRecipe() {
+  return RECIPES.find(r => {
+    if (r.stage > state.currentStage) return false;
+    // Check ingredients
+    const cauldronIds = state.cauldron.contents.map(c => c.id);
+    const recipeIds = r.ingredients.map(i => i[0]);
+    if (cauldronIds.length !== recipeIds.length) return false;
+    // Same items (order independent for ingredients)
+    for (const rid of recipeIds) {
+      if (!cauldronIds.includes(rid)) return false;
+    }
+    // Check sequence
+    for (let i = 0; i < r.sequence.length; i++) {
+      if (cauldronIds[i] !== r.sequence[i]) return false;
+    }
+    // Check temperature
+    if (state.cauldron.temperature !== r.temp) return false;
+    // Check stir count (within allowed range)
+    const stirs = state.cauldron.stirCount;
+    if (stirs < r.stirMin || stirs > r.stirMax) return false;
+    return true;
+  });
+}
+
+function findFailReason() {
+  const cauldronIds = state.cauldron.contents.map(c => c.id);
+  // Check if ingredients match any recipe but conditions are wrong
+  const partial = RECIPES.find(r => {
+    if (r.stage > state.currentStage) return false;
+    const recipeIds = r.ingredients.map(i => i[0]);
+    if (cauldronIds.length !== recipeIds.length) return false;
+    for (const rid of recipeIds) {
+      if (!cauldronIds.includes(rid)) return false;
+    }
+    return true; // ingredients match but something else is wrong
+  });
+  if (partial) {
+    const reasons = [];
+    // Check sequence
+    const seq = partial.sequence;
+    let seqOk = true;
+    for (let i = 0; i < seq.length; i++) {
+      if (cauldronIds[i] !== seq[i]) { seqOk = false; break; }
+    }
+    if (!seqOk) reasons.push('材料的投入顺序');
+    if (state.cauldron.temperature !== partial.temp)
+      reasons.push('温度设定');
+    // Check stir count
+    const stirs = state.cauldron.stirCount;
+    if (stirs < partial.stirMin) {
+      if (partial.stirMin === 0) reasons.push('不应搅拌');
+      else reasons.push('需要搅拌' + partial.stirMin + '次');
+    } else if (stirs > partial.stirMax) {
+      reasons.push('搅拌过多（最多' + partial.stirMax + '次）');
+    }
+    if (reasons.length > 0) {
+      return '就差一点！请检查' + reasons.join('和') + '。';
+    }
+  }
+  // Ingredients don't match any recipe — guide player to journal
+  return '材料组合不正确。请查阅右侧手札获取配方线索。';
+}
+
+function clearCauldron() {
+  resetCauldronState();
+  showMessage('坩埚已清空。', 'info');
+}
+
+function resetCauldronState() {
+  state.cauldron.contents = [];
+  state.cauldron.temperature = 0;
+  state.cauldron.stirCount = 0;
+  state.cauldron.state = 'empty';
+  state.cauldron.liquidColor = null;
+  state.cauldron.glowColor = null;
+  if (state.brewTimer) { clearTimeout(state.brewTimer); state.brewTimer = null; }
+  document.getElementById('temp-val').textContent = '低';
+  document.getElementById('temp-val').style.color = '#4fc3f7';
+  document.getElementById('btn-add').disabled = false;
+  document.getElementById('btn-brew').disabled = false;
+  document.getElementById('brew-progress').classList.remove('active');
+  document.getElementById('cauldron-liquid').style.height = '70%';
+  document.getElementById('temp-reaction').classList.remove('visible');
+  renderCauldronContents();
+  updateStirDisplay();
+  resetCauldronVisuals();
+}
+
+function resetCauldronVisuals() {
+  const liquid = document.getElementById('cauldron-liquid');
+  liquid.style.background = 'rgba(30,30,50,0.6)';
+  liquid.style.opacity = '1';
+  liquid.style.height = '70%';
+  liquid.style.transition = 'background 1.5s ease, box-shadow 1.5s ease, height 0.5s ease';
+  document.getElementById('cauldron-glow').style.background = 'rgba(79,195,247,0.08)';
+  document.getElementById('cauldron-glow').style.width = '160px';
+  document.getElementById('fire-container').classList.remove('active');
+  document.getElementById('fire-container').style.transform = '';
+  document.getElementById('fire-container').style.opacity = '';
+  document.getElementById('cauldron-state-overlay').className = '';
+  stopBubbles();
+  state.cauldron.liquidColor = null;
+  state.cauldron.glowColor = null;
+}
+
+function resetCauldron() {
+  resetCauldronState();
+}
+
+// ══════════════════════════════════════════
+// STAGE PROGRESSION
+// ══════════════════════════════════════════
+
+function checkStageProgress(recipe) {
+  const currentStage = state.currentStage;
+
+  if (currentStage === 1 && recipe.result === 'glowing_solution') {
+    state.stageCompleted[1] = true;
+    setTimeout(() => {
+      showMessage('柔和的光芒充满工坊。古老的符文似乎在墙壁上隐隐闪烁……', 'hint');
+      unlockJournal([1, 2]);
+      // Auto-transition to Stage 2
+      setTimeout(() => showStageTransition(2), 1500);
+    }, 1000);
+  }
+  else if (currentStage === 3) {
+    // Show targeted follow-up hints after crafting each item
+    if (recipe.result === 'purified_salt') {
+      setTimeout(() => showMessage('净化之盐已入库！还需炼制：烈焰灵药、虚空墨水。', 'hint'), 1200);
+    }
+    if (recipe.result === 'flame_elixir') {
+      setTimeout(() => showMessage('烈焰灵药已入库！还需炼制：虚空墨水。', 'hint'), 1200);
+    }
+    if (recipe.result === 'void_ink') {
+      setTimeout(() => showMessage('虚空墨水已入库！三种中级成品全部完成！', 'hint'), 1200);
+    }
+    // Check if all stage 3 recipes are crafted
+    const stage3Items = ['purified_salt', 'flame_elixir', 'void_ink'];
+    const allCrafted = stage3Items.every(i => state.inventory.includes(i));
+    if (allCrafted && !state.stageCompleted[3]) {
+      state.stageCompleted[3] = true;
+      setTimeout(() => {
+        showMessage('你已精通中级炼金术。更高阶的配方正等待着！', 'success');
+        setTimeout(() => showStageTransition(4), 1500);
+      }, 1000);
+    }
+  }
+  else if (currentStage === 4) {
+    if (recipe.result === 'aurora_powder') {
+      setTimeout(() => showMessage('极光之粉已入库！还需炼制：时之滴露。', 'hint'), 1200);
+    }
+    if (recipe.result === 'chronos_droplet') {
+      setTimeout(() => showMessage('时之滴露已入库！两种高阶成品全部完成！', 'hint'), 1200);
+    }
+    const stage4Items = ['aurora_powder', 'chronos_droplet'];
+    const allCrafted = stage4Items.every(i => state.inventory.includes(i));
+    if (allCrafted && !state.stageCompleted[4]) {
+      state.stageCompleted[4] = true;
+      setTimeout(() => {
+        unlockJournal([10]);
+        showMessage('最终阶段降临。远古装置已然可以激活！', 'success');
+        setTimeout(() => showStageTransition(5), 1500);
+      }, 1000);
+    }
+  }
+}
+
+// ── Stage 2: Use glowing_solution from inventory ──
+
+function useInventoryItem(itemId) {
+  if (state.currentStage !== 2) return;
+  if (itemId !== 'glowing_solution') {
+    showMessage('这个物品现在无法使用。', 'info');
+    return;
+  }
+  // Trigger the symbol reveal sequence
+  showMessage('你将荧光溶液泼洒向墙壁……', 'hint');
+  setTimeout(() => {
+    revealSymbols();
+  }, 1200);
+  setTimeout(() => {
+    showMessage('符文揭示了隐藏材料的所在！新物品已解锁。', 'success');
+    unlockJournal([3]);
+    // Unlock new materials
+    ['shadow_extract', 'starlight_dew', 'phoenix_tear'].forEach(m => {
+      if (!state.unlockedMaterials.includes(m)) state.unlockedMaterials.push(m);
+    });
+    // Replenish some stock for new materials
+    state.materialStock['shadow_extract'] = (state.materialStock['shadow_extract'] || 0) + 5;
+    state.materialStock['starlight_dew'] = (state.materialStock['starlight_dew'] || 0) + 4;
+    state.materialStock['phoenix_tear'] = (state.materialStock['phoenix_tear'] || 0) + 3;
+    unlockJournal([4]);
+    renderMaterials();
+    state.stageCompleted[2] = true;
+    // Mark glowing_solution as used (not consumed, but visually mark)
+    setTimeout(() => showStageTransition(3), 2500);
+  }, 5000);
+}
+
+// ── Stage Transition System ──
+
+function showStageTransition(stageId) {
+  const stage = STAGES[stageId - 1];
+  if (!stage) return;
+
+  const overlay = document.getElementById('stage-transition');
+  document.getElementById('st-icon').textContent = stage.icon;
+  document.getElementById('st-num-text').textContent = '第 ' + stage.id + ' 阶段';
+  document.getElementById('st-title').textContent = stage.name;
+  document.getElementById('st-desc').textContent = stage.desc;
+
+  overlay.classList.remove('fade-out');
+  overlay.classList.add('active');
+  // Force reflow for animation
+  void overlay.offsetWidth;
+}
+
+function dismissStageTransition() {
+  const overlay = document.getElementById('stage-transition');
+  overlay.classList.add('fade-out');
+  setTimeout(() => {
+    overlay.classList.remove('active', 'fade-out');
+    // Actually advance the stage after dismissal
+    const nextId = parseInt(document.getElementById('st-num-text').textContent.match(/\d+/)[0]);
+    advanceToStage(nextId);
+    // Clear cauldron on stage advance
+    resetCauldron();
+  }, 600);
+}
+
+function advanceToStage(newStage) {
+  state.currentStage = newStage;
+
+  // Stage-specific unlock & hint messages
+  if (newStage === 3) {
+    // Immediately reveal all three Stage 3 recipe entries so players aren't stuck
+    unlockJournal([5, 6, 7]);
+    setTimeout(() => showMessage('新配方已记录在手札中——查阅右侧手札获取炼制线索！', 'hint'), 800);
+  }
+  if (newStage === 4) {
+    unlockJournal([8, 9]);
+    setTimeout(() => showMessage('高阶配方已在手札中揭示，注意材料顺序与温度！', 'hint'), 800);
+  }
+
+  renderStageInfo();
+  renderJournal();
+  renderMaterials();
+  updateDeviceButton();
+  updateStageObjective();
+  showMessage('第 ' + newStage + ' 阶段开始：' + STAGES[newStage - 1].name, 'info');
+}
+
+// ── Stage Objective Bar ──
+
+function updateStageObjective() {
+  const bar = document.getElementById('stage-objective');
+  const stage = STAGES[state.currentStage - 1];
+  if (!stage || !stage.objective) {
+    bar.classList.remove('active');
+    return;
+  }
+  bar.innerHTML = '<span class="obj-icon">' + stage.icon + '</span>' + stage.objective;
+  bar.classList.add('active');
+}
+
+function unlockJournal(indices) {
+  indices.forEach(i => {
+    if (!state.journalUnlocked.includes(i)) state.journalUnlocked.push(i);
+  });
+  renderJournal();
+}
+
+// ══════════════════════════════════════════
+// STAGE 2: Reveal Symbols
+// ══════════════════════════════════════════
+
+function revealSymbols() {
+  const overlay = document.getElementById('symbols-overlay');
+  overlay.classList.add('active');
+  const symbols = ['☽', '☀', '⚗', '⊛', '✦', 'ᛟ', '⟡'];
+  const positions = [
+    {top:'15%',left:'20%'}, {top:'25%',left:'70%'}, {top:'60%',left:'15%'},
+    {top:'50%',left:'80%'}, {top:'80%',left:'30%'}, {top:'70%',left:'65%'},
+    {top:'35%',left:'45%'}
+  ];
+  positions.forEach((pos, i) => {
+    const el = document.createElement('div');
+    el.className = 'hidden-symbol';
+    el.textContent = symbols[i];
+    el.style.top = pos.top;
+    el.style.left = pos.left;
+    el.style.animationDelay = (i * 0.4) + 's';
+    overlay.appendChild(el);
+    setTimeout(() => el.remove(), 4000 + i * 400);
+  });
+  setTimeout(() => overlay.classList.remove('active'), 6000);
+}
+
+// ══════════════════════════════════════════
+// STAGE 5: The Device (embedded in lab area)
+// ══════════════════════════════════════════
+
+function updateDeviceButton() {
+  // Show/hide the embedded device area and hide/show cauldron area
+  const deviceArea = document.getElementById('device-area');
+  const cauldronArea = document.getElementById('cauldron-area');
+  const controls = document.getElementById('controls');
+  const contentsList = document.getElementById('contents-list');
+  const stirCount = document.getElementById('stir-count');
+  const tempReaction = document.getElementById('temp-reaction');
+  const resetBtn = document.getElementById('reset-btn');
+
+  if (state.currentStage >= 5) {
+    deviceArea.classList.add('active');
+    cauldronArea.style.display = 'none';
+    controls.style.display = 'none';
+    contentsList.style.display = 'none';
+    stirCount.style.display = 'none';
+    tempReaction.style.display = 'none';
+    resetBtn.style.display = 'none';
+    refreshDeviceUI();
+  } else {
+    deviceArea.classList.remove('active');
+    cauldronArea.style.display = '';
+    controls.style.display = '';
+    contentsList.style.display = '';
+    stirCount.style.display = '';
+    tempReaction.style.display = '';
+    resetBtn.style.display = '';
+  }
+}
+
+// Place an inventory item into the next empty slot (called from inventory click)
+function placeDeviceItem(itemId) {
+  if (state.currentStage < 5) return;
+  if (state.gameWon) return;
+  if (!state.deviceOrder.includes(itemId)) {
+    showMessage('这个物品不需要放入装置。', 'info');
+    return;
+  }
+  if (state.deviceSlots.includes(itemId)) {
+    showMessage('这个物品已经在装置中了。', 'info');
+    return;
+  }
+  // Find first empty slot
+  const emptyIdx = state.deviceSlots.indexOf(null);
+  if (emptyIdx === -1) {
+    showMessage('所有槽位已满。点击槽位可以取出物品。', 'info');
+    return;
+  }
+  state.deviceSlots[emptyIdx] = itemId;
+  const item = CRAFTED[itemId];
+  showMessage('已将「' + item.name + '」放入槽位 ' + (emptyIdx + 1), 'success');
+  refreshDeviceUI();
+}
+
+// Click a slot to remove its item (allows reordering)
+function toggleDeviceSlot(slotIndex) {
+  if (state.currentStage < 5 || state.gameWon) return;
+  if (state.deviceSlots[slotIndex]) {
+    const removed = state.deviceSlots[slotIndex];
+    state.deviceSlots[slotIndex] = null;
+    showMessage('已取出「' + CRAFTED[removed].name + '」', 'info');
+    refreshDeviceUI();
+  }
+}
+
+function refreshDeviceUI() {
+  // Update inline slot visuals
+  state.deviceSlots.forEach((itemId, i) => {
+    const slot = document.getElementById('dslot-' + i);
+    if (itemId) {
+      const item = CRAFTED[itemId];
+      slot.classList.add('filled');
+      slot.innerHTML = `<span class="slot-num">槽 ${i+1}</span><span class="slot-icon">${item.icon}</span><span class="slot-name">${item.name}</span>`;
+    } else {
+      slot.classList.remove('filled');
+      slot.innerHTML = `<span class="slot-num">槽 ${i+1}</span><span class="slot-icon">—</span><span class="slot-name">空</span>`;
+    }
+  });
+
+  // Rings light up
+  const filled = state.deviceSlots.filter(s => s !== null).length;
+  document.getElementById('dr1').classList.toggle('lit', filled >= 1);
+  document.getElementById('dr2').classList.toggle('lit', filled >= 2);
+  document.getElementById('dr3').classList.toggle('lit', filled >= 3);
+  document.getElementById('dr4').classList.toggle('lit', filled >= 4);
+
+  // Status message
+  const status = document.getElementById('device-status-embed');
+  if (filled >= 4) {
+    const correct = state.deviceSlots.every((s, i) => s === state.deviceOrder[i]);
+    if (correct) {
+      status.textContent = '✦ 装置发出共鸣之力！✦';
+      status.style.color = '#ffd54f';
+      if (!state.stageCompleted[5]) {
+        setTimeout(() => triggerVictory(), 1500);
+      }
+    } else {
+      status.textContent = '装置在嗡鸣……但排列似乎不对。点击槽位可以取出物品重新排列。';
+      status.style.color = '#ef5350';
+    }
+  } else {
+    status.textContent = '点击下方背包中发光的炼成品，直接放入装置。还需 ' + (4 - filled) + ' 个。';
+    status.style.color = '#c9a84c';
+  }
+
+  // Re-render inventory to update usable glow
+  renderInventory();
+}
+
+function triggerVictory() {
+  state.stageCompleted[5] = true;
+  state.gameWon = true;
+  showMessage('装置开始剧烈震动……', 'hint');
+  setTimeout(() => {
+    showMessage('光芒从装置中心喷涌而出！', 'success');
+  }, 2000);
+  setTimeout(() => {
+    document.getElementById('victory-overlay').classList.add('active');
+    spawnVictoryParticles();
+  }, 4000);
+}
+
+function spawnVictoryParticles() {
+  const overlay = document.getElementById('victory-overlay');
+  for (let i = 0; i < 40; i++) {
+    const p = document.createElement('div');
+    p.className = 'explosion-particle';
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 100 + Math.random() * 200;
+    p.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+    const colors = ['#ffd54f','#ce93d8','#4fc3f7','#81c784','#ff8a65','#ef5350'];
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.left = '50%';
+    p.style.top = '45%';
+    p.style.width = (4 + Math.random() * 8) + 'px';
+    p.style.height = p.style.width;
+    p.style.animationDuration = (0.8 + Math.random() * 1.2) + 's';
+    p.style.animationDelay = (Math.random() * 0.5) + 's';
+    overlay.appendChild(p);
+    setTimeout(() => p.remove(), 2500);
+  }
+}
+
+// ══════════════════════════════════════════
+// MESSAGES
+// ══════════════════════════════════════════
+
+function showMessage(text, type) {
+  const area = document.getElementById('message-area');
+  const msg = document.createElement('div');
+  msg.className = 'game-message ' + type;
+  msg.textContent = text;
+  area.appendChild(msg);
+  setTimeout(() => msg.remove(), 4200);
+}
+
+// ══════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════
+
+function showInspect(e, name, desc) {
+  const tip = document.getElementById('inspect-tooltip');
+  tip.querySelector('.tip-name').textContent = name;
+  tip.querySelector('.tip-desc').textContent = desc;
+  tip.style.display = 'block';
+  tip.style.left = Math.min(e.clientX + 10, window.innerWidth - 240) + 'px';
+  tip.style.top = Math.min(e.clientY + 10, window.innerHeight - 100) + 'px';
+  setTimeout(() => tip.style.display = 'none', 2500);
+}
+
+document.addEventListener('click', () => {
+  document.getElementById('inspect-tooltip').style.display = 'none';
+});
+
+// ══════════════════════════════════════════
+// DUST PARTICLES (background ambiance)
+// ══════════════════════════════════════════
+
+function initDust() {
+  const canvas = document.getElementById('dust-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  const particles = [];
+  for (let i = 0; i < 50; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: 0.5 + Math.random() * 1.5,
+      dx: (Math.random() - 0.5) * 0.3,
+      dy: -0.1 - Math.random() * 0.3,
+      opacity: 0.1 + Math.random() * 0.3,
+    });
+  }
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(201,168,76,${p.opacity})`;
+      ctx.fill();
+      p.x += p.dx;
+      p.y += p.dy;
+      if (p.y < -5) { p.y = canvas.height + 5; p.x = Math.random() * canvas.width; }
+      if (p.x < -5) p.x = canvas.width + 5;
+      if (p.x > canvas.width + 5) p.x = -5;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+  window.addEventListener('resize', () => {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  });
+}
+
+// ══════════════════════════════════════════
+// INIT & RESTART
+// ══════════════════════════════════════════
+
+function restartGame() {
+  // Reset all state
+  state.currentStage = 1;
+  state.unlockedMaterials = ['water_essence','ash_powder','ember_dust','air_crystal','crystal_dust','metal_fragment'];
+  state.inventory = [];
+  state.materialStock = {};
+  Object.keys(INITIAL_STOCK).forEach(k => state.materialStock[k] = INITIAL_STOCK[k]);
+  state.selectedMaterial = null;
+  state.journalUnlocked = [0];
+  state.deviceSlots = [null,null,null,null];
+  state.gameWon = false;
+  state.brewTimer = null;
+  state.conflictCooldown = {};
+  state.stageCompleted = {};
+
+  resetCauldronState();
+  document.getElementById('victory-overlay').classList.remove('active');
+  renderAll();
+  updateDeviceButton();
+  updateStageObjective();
+
+  setTimeout(() => {
+    showMessage('Tech工坊已重置。一切从头开始。', 'hint');
+  }, 500);
+}
+
+function init() {
+  renderAll();
+  initDust();
+  updateDeviceButton();
+  updateStageObjective();
+  // Show welcome
+  setTimeout(() => {
+    showMessage('欢迎来到Tech工坊。炼金术士已离去，接下来的使命属于你。', 'hint');
+  }, 500);
+  setTimeout(() => {
+    showMessage('阅读右侧手札获取指引。从材料架选取材料并投入坩埚。', 'info');
+  }, 2500);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
