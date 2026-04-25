@@ -7,23 +7,23 @@
 
 ## 🌐 Live Demo
 
-👉 **Play Online:**
+👉 **Play the interactive system online:**
 https://yyuwei66-sketch.github.io/interactive-systems-lab/
 
 ---
 
 ## 🎯 Project Overview
 
-This project showcases my ability to design and implement **interactive systems** and **user-facing applications** from scratch.
+This project demonstrates my ability to design and engineer **interactive systems from the ground up**, with a focus on:
 
-It focuses on:
+* Real-time user interaction
+* System architecture & modular design
+* State-driven logic management
+* Rendering performance and visual feedback
 
-* 🧠 System-level thinking (not just coding)
-* 🎮 Interactive logic & state management
-* ⚙️ Modular and scalable architecture
-* 🌌 Real-time rendering (Three.js)
+Rather than isolated demos, each project is structured as a **scalable and reusable system**, reflecting engineering-level thinking beyond simple front-end implementations.
 
-This work complements my background in **Artificial Intelligence**, demonstrating strong **engineering and implementation capability**.
+This work complements my background in **Artificial Intelligence**, highlighting strong capabilities in **system design and practical implementation**.
 
 ---
 
@@ -62,6 +62,22 @@ This work complements my background in **Artificial Intelligence**, demonstratin
 
 ---
 
+## 📸 Screenshots
+
+### 🧪 Alchemy Lab
+
+![Alchemy Lab](assets/alchemy.png)
+
+### 🏰 Arcane Escape
+
+![Arcane Escape](assets/escape.png)
+
+### 🌌 Space Runner
+
+![Space Runner](assets/runner.png)
+
+---
+
 ## ⚙️ Technical Highlights
 
 * **Vanilla JavaScript (No Frameworks)**
@@ -70,6 +86,15 @@ This work complements my background in **Artificial Intelligence**, demonstratin
 * **DOM + Canvas hybrid rendering**
 * **Three.js (3D graphics & animation)**
 * **Modular system decomposition**
+
+---
+
+## 🧩 Key Contributions
+
+* Designed a reusable interaction system across multiple applications
+* Implemented state-driven architecture for managing complex game logic
+* Built real-time rendering pipelines using Three.js
+* Developed modular components for scalability and maintainability
 
 ---
 
@@ -103,6 +128,11 @@ interactive-systems-lab/
 │   ├── arcane-escape/
 │   ├── space-runner/
 │
+├── assets/
+│   ├── alchemy.png
+│   ├── escape.png
+│   ├── runner.png
+│
 ├── index.html
 ├── README.md
 ```
@@ -111,9 +141,14 @@ interactive-systems-lab/
 
 ## 🚀 Run Locally
 
+Open `index.html` in your browser, or use a local server:
+
 ```bash
-# simply open in browser
-open index.html
+# Python
+python -m http.server
+
+# Node.js
+npx serve
 ```
 
 ---
@@ -150,4 +185,3 @@ Xiamen University Malaysia
 * 📧 [yyuwei66@gmail.com](mailto:yyuwei66@gmail.com)
 
 ---
-
