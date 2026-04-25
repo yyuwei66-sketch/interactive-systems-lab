@@ -1,0 +1,2290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tech学院 — 城堡脱逃</title>
+<style>
+/* ===== RESET & BASE ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --emerald:#1a5c3a;--deep-emerald:#0d3320;--midnight:#0a0e2a;--midnight-blue:#12163a;
+  --burgundy:#6b1d2a;--walnut:#3e2a1a;--walnut-light:#5c3d24;--gold:#c9a84c;--gold-dim:#8a7030;
+  --silver:#b8c4d0;--silver-glow:#d4e0f0;--parchment:#e8d5b0;--parchment-dark:#c4a87a;
+  --candle:#ffe4a0;--candle-dim:#c9a050;--ink:#1a1a2e;--ink-light:#2a2a4e;
+  --glow-green:#40ff90;--glow-blue:#6090ff;--glow-purple:#a060ff;--glow-gold:#ffd700;
+  --room-shadow:rgba(0,0,0,0.6);
+}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Georgia','Times New Roman',serif;background:var(--midnight);color:var(--parchment)}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* ===== LAYOUT ===== */
+#app{display:flex;flex-direction:column;width:100%;height:100%;max-width:1200px;margin:0 auto;position:relative}
+
+/* Top Bar */
+#top-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;
+  background:linear-gradient(180deg,var(--ink) 0%,var(--ink-light) 100%);
+  border-bottom:2px solid var(--gold-dim);z-index:10;flex-shrink:0;height:52px}
+#top-bar .title{font-size:1.1em;color:var(--gold);letter-spacing:2px;text-transform:uppercase;font-variant:small-caps}
+#top-bar .room-name{font-size:0.95em;color:var(--candle);font-style:italic}
+#top-bar .progress{font-size:0.85em;color:var(--silver);display:flex;align-items:center;gap:6px}
+#top-bar .progress-bar{width:120px;height:8px;background:var(--ink);border:1px solid var(--gold-dim);border-radius:4px;overflow:hidden}
+#top-bar .progress-fill{height:100%;background:linear-gradient(90deg,var(--gold-dim),var(--gold));transition:width 0.5s ease;border-radius:4px}
+
+/* Room indicator */
+.room-indicator{display:flex;gap:6px;align-items:center;margin-left:10px}
+.room-dot{width:10px;height:10px;border-radius:50%;border:1px solid var(--gold-dim);background:transparent;transition:all 0.3s}
+.room-dot.visited{background:var(--gold-dim)}
+.room-dot.current{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px rgba(201,168,76,0.5)}
+.room-dot.locked{opacity:0.3}
+
+/* Main Area */
+#main-area{display:flex;flex:1;overflow:hidden;position:relative}
+
+/* Room Viewport */
+#viewport{flex:1;position:relative;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 40%,#1a1e3a 0%,#0a0e2a 70%,#050510 100%);
+  border-left:3px solid var(--walnut);border-right:3px solid var(--walnut)}
+
+/* Room Scene */
+.room-scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity 0.6s ease;pointer-events:none}
+.room-scene.active{opacity:1;pointer-events:auto}
+.room-vignette{position:absolute;inset:0;pointer-events:none;z-index:6;
+  background:radial-gradient(ellipse at 50% 50%,transparent 40%,rgba(0,0,0,0.5) 100%)}
+
+/* Room Art Container */
+.room-art{position:relative;width:100%;height:100%;overflow:hidden}
+
+/* Ambient Effects */
+.ambient-particles{position:absolute;inset:0;pointer-events:none;z-index:5}
+.particle{position:absolute;width:3px;height:3px;border-radius:50%;opacity:0;
+  animation:floatParticle 4s ease-in-out infinite}
+@keyframes floatParticle{
+  0%{opacity:0;transform:translateY(0) scale(0.5)}
+  30%{opacity:0.8}
+  70%{opacity:0.6}
+  100%{opacity:0;transform:translateY(-60px) scale(1.2)}
+}
+
+/* ===== ROOM BACKGROUNDS (CSS Art) ===== */
+.room-bg{position:absolute;inset:0;z-index:0}
+
+/* Entrance Hall */
+.room-entrance .room-bg{
+  background:
+    radial-gradient(ellipse at 50% 20%,rgba(255,220,120,0.08) 0%,transparent 50%),
+    linear-gradient(180deg,#1a1520 0%,#2a1f28 40%,#1a1520 100%);
+}
+.room-entrance .floor{position:absolute;bottom:0;left:0;right:0;height:35%;
+  background:linear-gradient(180deg,#2a2018 0%,#1a1510 100%);
+  border-top:2px solid var(--gold-dim);z-index:2}
+.room-entrance .wall-left{position:absolute;left:0;top:0;bottom:35%;width:15%;
+  background:linear-gradient(90deg,#1a1828 0%,#1a182800 100%);z-index:1}
+.room-entrance .wall-right{position:absolute;right:0;top:0;bottom:35%;width:15%;
+  background:linear-gradient(-90deg,#1a1828 0%,#1a182800 100%);z-index:1}
+.room-entrance .arch{position:absolute;top:5%;left:20%;right:20%;height:55%;
+  border:3px solid var(--gold-dim);border-bottom:none;border-radius:50% 50% 0 0;
+  background:radial-gradient(ellipse at 50% 30%,rgba(255,220,120,0.04) 0%,transparent 70%);z-index:1}
+
+/* Grand Library */
+.room-library .room-bg{
+  background:
+    radial-gradient(ellipse at 30% 30%,rgba(255,200,80,0.06) 0%,transparent 40%),
+    radial-gradient(ellipse at 70% 30%,rgba(255,200,80,0.06) 0%,transparent 40%),
+    linear-gradient(180deg,#18140e 0%,#241e14 50%,#18140e 100%);
+}
+.room-library .floor{position:absolute;bottom:0;left:0;right:0;height:25%;
+  background:linear-gradient(180deg,#2a2018 0%,#1a1510 100%);
+  border-top:2px solid #4a3828;z-index:2}
+/* library wall pillars */
+.room-library .wall-left{position:absolute;left:0;top:0;bottom:25%;width:8%;
+  background:linear-gradient(90deg,#1a180e 0%,#1a180e00 100%);z-index:1}
+.room-library .wall-right{position:absolute;right:0;top:0;bottom:25%;width:8%;
+  background:linear-gradient(-90deg,#1a180e 0%,#1a180e00 100%);z-index:1}
+/* library shelf rows on walls */
+.room-library .wall-deco{position:absolute;top:5%;left:8%;right:8%;height:20%;
+  background:
+    repeating-linear-gradient(90deg,transparent 0px,transparent 60px,rgba(90,56,24,0.15) 60px,rgba(90,56,24,0.15) 62px);
+  z-index:1;pointer-events:none}
+
+/* Potion Chamber */
+.room-potion .room-bg{
+  background:
+    radial-gradient(ellipse at 50% 40%,rgba(100,200,150,0.06) 0%,transparent 50%),
+    radial-gradient(ellipse at 30% 60%,rgba(150,100,200,0.04) 0%,transparent 40%),
+    linear-gradient(180deg,#0e1810 0%,#1a2820 50%,#0e1810 100%);
+}
+.room-potion .floor{position:absolute;bottom:0;left:0;right:0;height:30%;
+  background:linear-gradient(180deg,#1a2028 0%,#101820 100%);
+  border-top:2px solid #2a3a38;z-index:2}
+.room-potion .wall-left{position:absolute;left:0;top:0;bottom:30%;width:8%;
+  background:linear-gradient(90deg,#0e1810 0%,#0e181000 100%);z-index:1}
+.room-potion .wall-right{position:absolute;right:0;top:0;bottom:30%;width:8%;
+  background:linear-gradient(-90deg,#0e1810 0%,#0e181000 100%);z-index:1}
+/* potion stain on floor */
+.room-potion .wall-deco{position:absolute;bottom:5%;left:40%;width:18%;height:10%;
+  background:radial-gradient(ellipse,rgba(64,200,100,0.08) 0%,transparent 70%);
+  border-radius:50%;z-index:2;pointer-events:none}
+
+/* Hall of Relics */
+.room-relics .room-bg{
+  background:
+    radial-gradient(ellipse at 50% 30%,rgba(200,180,100,0.08) 0%,transparent 50%),
+    linear-gradient(180deg,#1a1418 0%,#2a2030 50%,#1a1418 100%);
+}
+.room-relics .floor{position:absolute;bottom:0;left:0;right:0;height:30%;
+  background:linear-gradient(180deg,#201a20 0%,#161018 100%);
+  border-top:2px solid var(--gold-dim);z-index:2}
+.room-relics .wall-left{position:absolute;left:0;top:0;bottom:30%;width:8%;
+  background:linear-gradient(90deg,#1a1418 0%,#1a141800 100%);z-index:1}
+.room-relics .wall-right{position:absolute;right:0;top:0;bottom:30%;width:8%;
+  background:linear-gradient(-90deg,#1a1418 0%,#1a141800 100%);z-index:1}
+/* relics ceremonial circle on floor */
+.room-relics .wall-deco{position:absolute;bottom:8%;left:30%;right:30%;height:18%;
+  border:1px solid rgba(201,168,76,0.12);border-radius:50%;z-index:2;pointer-events:none;
+  box-shadow:inset 0 0 30px rgba(201,168,76,0.04)}
+
+/* Headmaster's Study */
+.room-study .room-bg{
+  background:
+    radial-gradient(ellipse at 50% 25%,rgba(255,200,80,0.1) 0%,transparent 40%),
+    radial-gradient(ellipse at 50% 70%,rgba(100,60,200,0.04) 0%,transparent 40%),
+    linear-gradient(180deg,#1a1828 0%,#24203a 50%,#1a1828 100%);
+}
+.room-study .floor{position:absolute;bottom:0;left:0;right:0;height:25%;
+  background:linear-gradient(180deg,#2a2230 0%,#1a1520 100%);
+  border-top:2px solid var(--gold-dim);z-index:2}
+.room-study .wall-left{position:absolute;left:0;top:0;bottom:25%;width:8%;
+  background:linear-gradient(90deg,#1a1828 0%,#1a182800 100%);z-index:1}
+.room-study .wall-right{position:absolute;right:0;top:0;bottom:25%;width:8%;
+  background:linear-gradient(-90deg,#1a1828 0%,#1a182800 100%);z-index:1}
+/* study star pattern on ceiling */
+.room-study .wall-deco{position:absolute;top:2%;left:15%;right:15%;height:12%;
+  background:
+    radial-gradient(circle 2px at 20% 30%,rgba(255,255,200,0.3) 100%,transparent 100%),
+    radial-gradient(circle 1.5px at 40% 50%,rgba(200,200,255,0.25) 100%,transparent 100%),
+    radial-gradient(circle 2px at 60% 20%,rgba(255,255,200,0.2) 100%,transparent 100%),
+    radial-gradient(circle 1.5px at 80% 60%,rgba(200,220,255,0.3) 100%,transparent 100%),
+    radial-gradient(circle 1px at 50% 80%,rgba(255,200,255,0.2) 100%,transparent 100%),
+    radial-gradient(circle 1.5px at 30% 70%,rgba(200,255,255,0.15) 100%,transparent 100%),
+    radial-gradient(circle 1px at 70% 40%,rgba(255,255,200,0.2) 100%,transparent 100%);
+  z-index:1;pointer-events:none}
+
+/* ===== INTERACTIVE OBJECTS ===== */
+.interactive{position:absolute;cursor:pointer;z-index:10;transition:all 0.3s ease;
+  display:flex;align-items:center;justify-content:center;overflow:visible}
+.interactive:hover{filter:brightness(1.3);transform:scale(1.05)}
+.interactive.highlighted{animation:pulseGlow 1.5s ease-in-out infinite}
+@keyframes pulseGlow{
+  0%,100%{box-shadow:0 0 8px rgba(201,168,76,0.3)}
+  50%{box-shadow:0 0 20px rgba(201,168,76,0.7)}
+}
+.interactive .obj-label{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);
+  font-size:0.7em;color:var(--gold);white-space:nowrap;opacity:0;transition:opacity 0.3s;
+  text-shadow:0 0 6px rgba(0,0,0,0.8);pointer-events:none}
+.interactive:hover .obj-label{opacity:1}
+.interactive.collected{opacity:0.3;pointer-events:none;cursor:default}
+.interactive.collected:hover{filter:none;transform:none}
+
+/* ===== OBJECT VISUAL STYLES — SVG-RICH REDRAWN ===== */
+@keyframes flicker{0%{opacity:0.9;transform:translateX(-50%) scale(1)}100%{opacity:1;transform:translateX(-50%) scale(1.1)}}
+@keyframes flameDance{0%{transform:scaleX(1) scaleY(1)}50%{transform:scaleX(1.12) scaleY(0.92)}100%{transform:scaleX(0.9) scaleY(1.1)}}
+@keyframes steamRise{0%{opacity:0.6;transform:translateY(0) scaleX(1)}100%{opacity:0;transform:translateY(-20px) scaleX(1.5)}}
+@keyframes globeSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+
+/* ── PORTRAIT 创始者画像 ── */
+.obj-portrait{
+  width:100px;height:130px;
+  border:5px solid var(--gold-dim);
+  border-radius:4px;
+  box-shadow:0 0 24px rgba(0,0,0,0.8),inset 0 0 20px rgba(0,0,0,0.3),0 0 8px rgba(201,168,76,0.15);
+  overflow:hidden;
+  background-color:#1e1835;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 120'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23352d48'/%3E%3Cstop offset='100%25' stop-color='%231e1835'/%3E%3C/linearGradient%3E%3ClinearGradient id='hat' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23352560'/%3E%3Cstop offset='100%25' stop-color='%232a1a4a'/%3E%3C/linearGradient%3E%3ClinearGradient id='robe' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%232e1a4a'/%3E%3Cstop offset='100%25' stop-color='%231c1035'/%3E%3C/linearGradient%3E%3ClinearGradient id='beard' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23f0e8d8'/%3E%3Cstop offset='100%25' stop-color='%23d0c4b0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='90' height='120' fill='url(%23bg)'/%3E%3C!-- Robe --%3E%3Cpath d='M25,65 L10,120 L80,120 L65,65 Z' fill='url(%23robe)'/%3E%3C!-- Robe V-collar --%3E%3Cpath d='M35,65 L45,80 L55,65' fill='none' stroke='%233d2868' stroke-width='1.5'/%3E%3C!-- Gold stars on robe --%3E%3Ccircle cx='32' cy='95' r='2' fill='%23c9a84c'/%3E%3Ccircle cx='58' cy='100' r='2' fill='%23c9a84c'/%3E%3Ccircle cx='45' cy='108' r='1.5' fill='%23c9a84c'/%3E%3C!-- Beard --%3E%3Cpath d='M32,48 Q30,55 28,70 Q30,85 45,95 Q60,85 62,70 Q60,55 58,48 Z' fill='url(%23beard)'/%3E%3C!-- Beard center line --%3E%3Cline x1='45' y1='55' x2='45' y2='88' stroke='%23c8b898' stroke-width='0.8' opacity='0.4'/%3E%3C!-- Mustache --%3E%3Cpath d='M35,48 Q40,52 45,50 Q50,52 55,48 Q50,45 45,46 Q40,45 35,48 Z' fill='%23e8e0d0'/%3E%3C!-- Face --%3E%3Cellipse cx='45' cy='42' rx='16' ry='17' fill='%23deb887'/%3E%3C!-- Hair sides --%3E%3Cpath d='M29,32 Q27,40 29,50 Q25,40 28,30 Z' fill='%23ece4d8'/%3E%3Cpath d='M61,32 Q63,40 61,50 Q65,40 62,30 Z' fill='%23ece4d8'/%3E%3C!-- Hat body --%3E%3Cpath d='M25,32 L45,2 L65,32 Z' fill='url(%23hat)'/%3E%3C!-- Hat brim --%3E%3Crect x='18' y='30' width='54' height='5' rx='2' fill='%233d2d5a'/%3E%3C!-- Gold hat band --%3E%3Crect x='18' y='33' width='54' height='1.5' fill='%23c9a84c' opacity='0.8'/%3E%3C!-- Eyebrows (white bushy) --%3E%3Cpath d='M34,36 Q38,33 42,36' fill='none' stroke='%23ece4d8' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M48,36 Q52,33 56,36' fill='none' stroke='%23ece4d8' stroke-width='2.5' stroke-linecap='round'/%3E%3C!-- Eyes --%3E%3Ccircle cx='38' cy='40' r='2' fill='%231a1008'/%3E%3Ccircle cx='52' cy='40' r='2' fill='%231a1008'/%3E%3C!-- Nose --%3E%3Cpath d='M45,42 Q43,46 45,47 Q47,46 45,42' fill='%23c8a070' opacity='0.5'/%3E%3C!-- Mouth hint --%3E%3Cpath d='M41,49 Q45,51 49,49' fill='none' stroke='%23b08060' stroke-width='0.8' opacity='0.4'/%3E%3C/svg%3E");
+  background-size:cover;
+  background-position:center;
+}
+.obj-portrait::before,
+.obj-portrait::after{
+  display:none;
+}
+
+
+  50%{opacity:0.75}
+}
+
+/* ── CANDLE 烛台 ── */
+.obj-candle{
+  width:36px;height:72px;
+  position:relative;
+  overflow:visible !important;
+}
+/* candlestick base */
+.obj-candle::before{
+  content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:36px;height:72px;
+  background:
+    /* brass holder dish at bottom */
+    linear-gradient(180deg,transparent 0%,transparent 55%,#8a6a30 55%,#6a5020 65%,#5a4018 75%,#4a3010 100%),
+    /* candle body */
+    linear-gradient(90deg,#c8a840 0%,#f5e8b0 30%,#f5e8b0 70%,#c8a840 100%);
+  background-size:100% 100%,100% 60%;
+  background-position:center center,center top;
+  background-repeat:no-repeat;
+  border-radius:3px 3px 2px 2px;
+  box-shadow:0 4px 8px rgba(0,0,0,0.4),0 -2px 20px rgba(255,220,120,0.4),0 0 40px rgba(255,200,80,0.15);
+}
+/* flame */
+.obj-candle::after{
+  content:'';position:absolute;top:-16px;left:50%;transform:translateX(-50%);
+  width:14px;height:24px;
+  background:radial-gradient(ellipse 7px 12px at 50% 60%,#fff8e0 0%,#ffcc40 35%,#ff8800 65%,transparent 100%);
+  border-radius:50% 50% 30% 30%;
+  animation:flicker 0.25s ease-in-out infinite alternate;
+  filter:blur(0.8px);
+  z-index:2;
+}
+
+/* ── CABINET 上锁柜子 ── */
+.obj-cabinet{
+  width:80px;height:100px;
+  background:linear-gradient(180deg,#5a3820 0%,#3a2412 100%);
+  border:3px solid #8a6030;
+  border-radius:3px;
+  box-shadow:inset -4px 0 8px rgba(0,0,0,0.4),inset 4px 0 6px rgba(255,255,255,0.04);
+  overflow:visible;
+}
+/* door panel lines */
+.obj-cabinet::before{
+  content:'';position:absolute;
+  top:10px;left:8px;right:8px;bottom:8px;
+  border:2px solid #7a5028;
+  border-radius:2px;
+  box-shadow:inset 0 0 6px rgba(0,0,0,0.3);
+}
+/* lock */
+.obj-cabinet::after{
+  content:'🔒';
+  position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
+  font-size:16px;filter:drop-shadow(0 0 4px rgba(201,168,76,0.5));
+}
+
+/* ── CHANDELIER 枝形吊灯 ── */
+.obj-chandelier{
+  width:100px;height:36px;
+  background:transparent;
+  position:relative;
+}
+.obj-chandelier::before{
+  content:'';position:absolute;
+  top:0;left:50%;transform:translateX(-50%);
+  width:4px;height:12px;
+  background:linear-gradient(180deg,#6a5030,#4a3820);
+}
+.obj-chandelier::after{
+  content:'';position:absolute;
+  top:10px;left:5%;width:90%;height:14px;
+  background:
+    /* central arm */
+    linear-gradient(90deg,transparent 10%,#6a5030 10%,#6a5030 90%,transparent 90%),
+    /* candle flames row */
+    radial-gradient(ellipse 8px 14px at 20% 0%,rgba(255,200,80,0.9),transparent 70%),
+    radial-gradient(ellipse 8px 14px at 40% 0%,rgba(255,200,80,0.85),transparent 70%),
+    radial-gradient(ellipse 8px 14px at 60% 0%,rgba(255,200,80,0.9),transparent 70%),
+    radial-gradient(ellipse 8px 14px at 80% 0%,rgba(255,200,80,0.85),transparent 70%);
+  border-radius:2px;
+  box-shadow:0 4px 30px rgba(255,200,80,0.25),0 0 50px rgba(255,180,60,0.12);
+}
+
+/* ── BOOKSHELF 书架 ── */
+.obj-bookshelf{
+  width:120px;height:160px;
+  background:linear-gradient(180deg,#5a3818 0%,#3a2410 100%);
+  border:3px solid #7a5628;
+  border-radius:2px;
+  overflow:hidden;
+  display:block;
+  box-shadow:inset -6px 0 10px rgba(0,0,0,0.4),inset 6px 0 8px rgba(255,255,255,0.03);
+}
+/* shelf boards */
+.obj-bookshelf::before{
+  content:'';position:absolute;inset:0;
+  background:
+    /* board lines */
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px, transparent 36px,
+      #2a1808 36px, #2a1808 40px
+    );
+}
+/* colorful book spines */
+.obj-bookshelf::after{
+  content:'';position:absolute;inset:4px 6px;
+  background:
+    /* row 1 books */
+    linear-gradient(90deg,
+      #8B1a1a 0%,#8B1a1a 8%,
+      #1a5a8B 9%,#1a5a8B 17%,
+      #1a8B3a 18%,#1a8B3a 24%,
+      #7a5a1a 25%,#7a5a1a 34%,
+      #5a1a7a 35%,#5a1a7a 43%,
+      #8B4a1a 44%,#8B4a1a 52%,
+      #1a3a8B 53%,#1a3a8B 60%,
+      #5a8B1a 61%,#5a8B1a 68%,
+      #8B1a5a 69%,#8B1a5a 77%,
+      #2a6a5a 78%,#2a6a5a 85%,
+      #6a3a1a 86%,#6a3a1a 93%,
+      #1a5a3a 94%,#1a5a3a 100%
+    ) 0 2px / 100% 32px no-repeat,
+    /* row 2 books */
+    linear-gradient(90deg,
+      #1a4a8B 0%,#1a4a8B 10%,
+      #8B3a1a 11%,#8B3a1a 20%,
+      #3a8B1a 21%,#3a8B1a 28%,
+      #8B1a3a 29%,#8B1a3a 37%,
+      #1a7a6a 38%,#1a7a6a 46%,
+      #6a5a1a 47%,#6a5a1a 55%,
+      #4a1a8B 56%,#4a1a8B 63%,
+      #8B6a1a 64%,#8B6a1a 72%,
+      #1a5a7a 73%,#1a5a7a 80%,
+      #7a1a4a 81%,#7a1a4a 88%,
+      #2a8B4a 89%,#2a8B4a 100%
+    ) 0 42px / 100% 32px no-repeat,
+    /* row 3 books */
+    linear-gradient(90deg,
+      #5a1a1a 0%,#5a1a1a 9%,
+      #1a5a2a 10%,#1a5a2a 18%,
+      #5a4a1a 19%,#5a4a1a 27%,
+      #1a2a5a 28%,#1a2a5a 36%,
+      #5a2a3a 37%,#5a2a3a 45%,
+      #2a5a4a 46%,#2a5a4a 54%,
+      #4a3a1a 55%,#4a3a1a 64%,
+      #1a4a5a 65%,#1a4a5a 72%,
+      #4a1a5a 73%,#4a1a5a 82%,
+      #3a5a1a 83%,#3a5a1a 90%,
+      #5a3a2a 91%,#5a3a2a 100%
+    ) 0 82px / 100% 32px no-repeat,
+    /* row 4 books */
+    linear-gradient(90deg,
+      #2a3a7a 0%,#2a3a7a 12%,
+      #7a2a2a 13%,#7a2a2a 21%,
+      #2a7a4a 22%,#2a7a4a 30%,
+      #7a5a2a 31%,#7a5a2a 40%,
+      #3a2a7a 41%,#3a2a7a 49%,
+      #7a2a5a 50%,#7a2a5a 58%,
+      #2a6a7a 59%,#2a6a7a 67%,
+      #6a7a2a 68%,#6a7a2a 76%,
+      #7a3a2a 77%,#7a3a2a 85%,
+      #2a4a6a 86%,#2a4a6a 94%,
+      #4a6a2a 95%,#4a6a2a 100%
+    ) 0 122px / 100% 30px no-repeat;
+  border-radius:1px;
+}
+
+/* ── BOOK 发光典籍 ── */
+.obj-book{
+  width:32px;height:44px;
+  background:linear-gradient(160deg,#2a5a3a 0%,#1a3a2a 100%);
+  border-radius:2px 5px 5px 2px;
+  border-left:4px solid #3a7a4a;
+  box-shadow:1px 0 4px rgba(0,0,0,0.4),0 0 14px rgba(64,255,144,0.35),inset 1px 0 3px rgba(64,255,144,0.1);
+}
+/* glowing pages at top */
+.obj-book::before{
+  content:'';position:absolute;
+  top:4px;right:2px;left:6px;height:36px;
+  background:repeating-linear-gradient(
+    180deg,
+    rgba(200,220,200,0.15) 0px,rgba(200,220,200,0.15) 2px,
+    transparent 2px,transparent 5px
+  );
+}
+/* title text line */
+.obj-book::after{
+  content:'';position:absolute;
+  top:8px;left:8px;right:4px;height:2px;
+  background:rgba(100,255,150,0.4);
+  border-radius:1px;
+  box-shadow:0 4px 0 rgba(100,255,150,0.2),0 8px 0 rgba(100,255,150,0.15);
+}
+
+/* ── CAULDRON 坩埚 ── */
+.obj-cauldron{
+  width:72px;height:64px;
+  background:linear-gradient(180deg,#3a3a4a 0%,#1a1a2a 100%);
+  border:3px solid #5a5a6a;
+  border-radius:6px 6px 50% 50%;
+  position:relative;
+  box-shadow:0 4px 12px rgba(0,0,0,0.5),inset 0 0 16px rgba(0,0,0,0.4);
+}
+/* rim/handle top bar */
+.obj-cauldron::before{
+  content:'';position:absolute;top:-10px;left:8%;right:8%;height:12px;
+  background:linear-gradient(180deg,#5a5a6a,#3a3a4a);
+  border-radius:6px 6px 0 0;
+  border:2px solid #6a6a7a;
+}
+/* bubbling liquid inside */
+.obj-cauldron::after{
+  content:'';position:absolute;
+  top:8px;left:12px;right:12px;height:18px;
+  background:radial-gradient(ellipse,#3a6a3a 0%,#1a4a1a 60%,transparent 80%);
+  border-radius:50%;
+  box-shadow:0 0 12px rgba(64,200,100,0.4);
+  animation:flameDance 1.2s ease-in-out infinite alternate;
+}
+
+/* ── BOTTLE 玻璃器具 ── */
+.obj-bottle{
+  width:18px;height:38px;
+  background:linear-gradient(160deg,#3a8a5a 0%,#1a5a3a 60%,#0a3a20 100%);
+  border:1.5px solid #5aaa7a;
+  border-radius:3px 3px 2px 2px;
+  position:relative;
+  box-shadow:inset 2px 0 4px rgba(255,255,255,0.1),0 0 8px rgba(64,200,100,0.15);
+}
+/* bottle neck */
+.obj-bottle::before{
+  content:'';position:absolute;top:-9px;left:20%;width:60%;height:11px;
+  background:linear-gradient(180deg,#7a4a2a,#5a3a1a);
+  border-radius:3px 3px 0 0;
+  border:1.5px solid #8a5a3a;
+}
+/* liquid shimmer */
+.obj-bottle::after{
+  content:'';position:absolute;
+  top:6px;left:3px;width:4px;height:20px;
+  background:rgba(160,255,200,0.25);
+  border-radius:2px;
+}
+
+/* ── DESK 书桌 ── */
+.obj-desk{
+  width:140px;height:64px;
+  background:linear-gradient(180deg,#6a3818 0%,#4a2810 100%);
+  border:3px solid #8a5828;
+  border-radius:3px;
+  overflow:hidden;
+  box-shadow:0 4px 10px rgba(0,0,0,0.4),inset 0 2px 4px rgba(255,255,255,0.05);
+}
+/* star map papers on desk */
+.obj-desk::before{
+  content:'';position:absolute;
+  top:6px;left:8px;width:55px;height:46px;
+  background:linear-gradient(135deg,#d4c89a 0%,#b8a878 100%);
+  border-radius:2px;
+  transform:rotate(-3deg);
+  box-shadow:1px 1px 4px rgba(0,0,0,0.4);
+}
+/* book open on desk */
+.obj-desk::after{
+  content:'';position:absolute;
+  top:8px;right:10px;width:48px;height:42px;
+  background:linear-gradient(90deg,#2a4a3a 0%,#1a3a2a 48%,#c8b890 50%,#b0a078 100%);
+  border-radius:2px;
+  box-shadow:1px 1px 4px rgba(0,0,0,0.5);
+}
+
+/* ── GLOBE 星轨仪 ── */
+.obj-globe{
+  width:48px;height:48px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#4a6a9a 0%,#2a4a6a 50%,#0a1a3a 100%);
+  border:2.5px solid var(--gold-dim);
+  box-shadow:0 0 20px rgba(100,150,255,0.3),inset 0 0 10px rgba(0,0,50,0.5);
+  overflow:hidden;
+  position:relative;
+}
+/* orbit rings */
+.obj-globe::before{
+  content:'';position:absolute;inset:-4px;
+  border-radius:50%;
+  border:1.5px solid rgba(201,168,76,0.35);
+  transform:rotateX(75deg);
+}
+/* star dots + meridian */
+.obj-globe::after{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(circle 1.5px at 30% 25%,rgba(255,255,200,0.9) 100%,transparent 100%),
+    radial-gradient(circle 1px at 65% 40%,rgba(255,255,200,0.7) 100%,transparent 100%),
+    radial-gradient(circle 1.5px at 50% 65%,rgba(255,255,200,0.8) 100%,transparent 100%),
+    radial-gradient(circle 1px at 20% 55%,rgba(255,255,200,0.6) 100%,transparent 100%),
+    radial-gradient(circle 1.5px at 78% 22%,rgba(255,255,200,0.9) 100%,transparent 100%);
+}
+
+/* ── WINDOW 彩绘花窗 ── */
+.obj-window{
+  width:80px;height:120px;
+  background:
+    /* colored glass panes */
+    radial-gradient(ellipse 40px 60px at 50% 40%,rgba(100,160,255,0.2),transparent 70%),
+    linear-gradient(180deg,
+      rgba(100,120,220,0.25) 0%,
+      rgba(60,100,180,0.15) 50%,
+      rgba(40,80,160,0.1) 100%
+    );
+  border:4px solid var(--gold-dim);
+  border-radius:40px 40px 4px 4px;
+  overflow:hidden;
+  box-shadow:0 0 20px rgba(100,150,255,0.15),inset 0 0 20px rgba(100,150,220,0.08);
+}
+/* cross divider bars */
+.obj-window::before{
+  content:'';position:absolute;
+  top:0;left:50%;transform:translateX(-50%);
+  width:3px;height:100%;
+  background:var(--gold-dim);
+  box-shadow:-20px 0 0 rgba(201,168,76,0.5),20px 0 0 rgba(201,168,76,0.5);
+}
+.obj-window::after{
+  content:'';position:absolute;
+  top:45%;left:0;right:0;height:3px;
+  background:var(--gold-dim);
+}
+
+/* ── TAPESTRY 挂毯 ── */
+.obj-tapestry{
+  width:90px;height:130px;
+  background:linear-gradient(180deg,#5a1a2a 0%,#3a1020 70%,#2a0c18 100%);
+  border:3px solid var(--gold-dim);
+  border-radius:2px;
+  overflow:hidden;
+  box-shadow:inset 0 0 20px rgba(0,0,0,0.5);
+}
+/* woven pattern */
+.obj-tapestry::before{
+  content:'';position:absolute;inset:6px;
+  background:
+    repeating-linear-gradient(0deg,
+      transparent,transparent 8px,
+      rgba(201,168,76,0.12) 8px,rgba(201,168,76,0.12) 9px
+    ),
+    repeating-linear-gradient(90deg,
+      transparent,transparent 8px,
+      rgba(201,168,76,0.08) 8px,rgba(201,168,76,0.08) 9px
+    );
+}
+/* center motif */
+.obj-tapestry::after{
+  content:'✦';position:absolute;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:28px;color:rgba(201,168,76,0.5);
+  text-shadow:0 0 10px rgba(201,168,76,0.3);
+}
+
+/* ── TABLE 阅览桌 ── */
+.obj-table{
+  width:110px;height:54px;
+  background:linear-gradient(180deg,#5a3818 0%,#3a2410 100%);
+  border:2.5px solid #7a5028;
+  border-radius:3px;
+  overflow:hidden;
+  box-shadow:0 4px 8px rgba(0,0,0,0.4);
+}
+/* scattered papers */
+.obj-table::before{
+  content:'';position:absolute;
+  top:4px;left:6px;width:42px;height:36px;
+  background:#c8b880;border-radius:2px;
+  transform:rotate(-4deg);
+  box-shadow:1px 1px 3px rgba(0,0,0,0.4);
+}
+.obj-table::after{
+  content:'';position:absolute;
+  top:6px;right:8px;width:36px;height:30px;
+  background:#b8a870;border-radius:2px;
+  transform:rotate(5deg);
+  box-shadow:1px 1px 3px rgba(0,0,0,0.3);
+}
+
+/* ── MIRROR 银镜 ── */
+.obj-mirror{
+  width:58px;height:78px;
+  border-radius:29px 29px 5px 5px;
+  background:linear-gradient(135deg,#2a3a5a 0%,#4a5a7a 30%,#1a2a4a 70%,#3a4a6a 100%);
+  border:4px solid var(--gold-dim);
+  box-shadow:0 0 20px rgba(100,150,255,0.2),inset 0 0 15px rgba(100,150,220,0.1);
+  overflow:hidden;
+}
+/* reflection shimmer */
+.obj-mirror::before{
+  content:'';position:absolute;
+  top:10px;left:8px;width:14px;height:50px;
+  background:linear-gradient(160deg,rgba(255,255,255,0.25),rgba(255,255,255,0.05));
+  border-radius:7px;
+  transform:rotate(5deg);
+}
+/* magical glow inside */
+.obj-mirror::after{
+  content:'';position:absolute;inset:8px;
+  border-radius:inherit;
+  background:radial-gradient(ellipse,rgba(100,150,255,0.12) 0%,transparent 70%);
+}
+
+/* ── DOOR 门 ── */
+.obj-door{
+  width:62px;height:104px;
+  background:linear-gradient(180deg,#3a2818 0%,#2a1810 100%);
+  border:3px solid var(--gold-dim);
+  border-radius:5px 5px 0 0;
+  overflow:hidden;
+  box-shadow:inset -4px 0 8px rgba(0,0,0,0.3),0 0 8px rgba(0,0,0,0.3);
+}
+/* door arch top */
+.obj-door::before{
+  content:'';position:absolute;
+  top:4px;left:6px;right:6px;height:50px;
+  border:1.5px solid rgba(201,168,76,0.4);
+  border-radius:24px 24px 2px 2px;
+}
+/* door knob */
+.obj-door::after{
+  content:'';position:absolute;
+  top:55%;right:9px;
+  width:8px;height:8px;
+  background:radial-gradient(circle at 35% 35%,#e0c060,#a08030);
+  border-radius:50%;
+  box-shadow:0 0 4px rgba(201,168,76,0.4);
+}
+.obj-door.locked{border-color:#888;box-shadow:0 0 10px rgba(100,100,150,0.3)}
+.obj-door.locked::after{
+  content:'🔒';
+  right:6px;top:42%;
+  width:auto;height:auto;
+  background:none;border-radius:0;
+  font-size:14px;
+  box-shadow:none;
+}
+
+/* ── RUNE 符文 ── */
+.obj-rune{
+  width:44px;height:44px;
+  border-radius:50%;
+  background:radial-gradient(circle at 45% 40%,#3a4a7a 0%,#1a2a4a 60%,#0a1a3a 100%);
+  border:2.5px solid var(--silver);
+  box-shadow:0 0 16px rgba(160,200,255,0.35),inset 0 0 10px rgba(0,0,50,0.4);
+  font-size:20px;display:flex;align-items:center;justify-content:center;
+  color:var(--silver-glow);
+  text-shadow:0 0 8px rgba(160,200,255,0.8);
+}
+
+/* ── PAINTING 创始画作 ── */
+.obj-painting{
+  width:110px;height:82px;
+  background:linear-gradient(160deg,#2a3020 0%,#1a2010 100%);
+  border:5px solid var(--gold-dim);
+  border-radius:2px;
+  overflow:hidden;
+  box-shadow:0 0 12px rgba(0,0,0,0.5);
+}
+/* three figure silhouettes */
+.obj-painting::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 14px 22px at 26% 75%,#4a5a3a 0%,transparent 70%),
+    radial-gradient(ellipse 14px 22px at 50% 72%,#3a4a2a 0%,transparent 70%),
+    radial-gradient(ellipse 14px 22px at 74% 75%,#4a5a3a 0%,transparent 70%),
+    /* head dots */
+    radial-gradient(circle 5px at 26% 45%,#6a7a5a 0%,transparent 70%),
+    radial-gradient(circle 5px at 50% 42%,#6a7a5a 0%,transparent 70%),
+    radial-gradient(circle 5px at 74% 45%,#6a7a5a 0%,transparent 70%),
+    /* sky background */
+    linear-gradient(180deg,#1a2a3a 0%,#2a3a2a 60%,#1a2a1a 100%);
+}
+/* gold frame inner line */
+.obj-painting::after{
+  content:'';position:absolute;inset:3px;
+  border:1px solid rgba(201,168,76,0.3);
+  border-radius:1px;pointer-events:none;
+}
+
+/* ── FIREPLACE 壁炉 ── */
+.obj-fireplace{
+  width:100px;height:82px;
+  background:linear-gradient(180deg,#3a2818 0%,#2a1808 100%);
+  border:3px solid #6a4828;
+  border-radius:5px 5px 0 0;
+  overflow:visible;
+  position:relative;
+}
+/* stone arch */
+.obj-fireplace::before{
+  content:'';position:absolute;
+  top:6px;left:12px;right:12px;height:48px;
+  background:linear-gradient(180deg,#1a1008,#0a0804);
+  border:2px solid #5a3820;
+  border-radius:36px 36px 2px 2px;
+  z-index:1;
+}
+/* flames */
+.obj-fireplace::after{
+  content:'';position:absolute;
+  bottom:8px;left:22px;right:22px;height:34px;
+  background:
+    radial-gradient(ellipse 24px 28px at 40% 90%,#ff6010 0%,#ff3000 40%,transparent 70%),
+    radial-gradient(ellipse 20px 24px at 65% 90%,#ff8020 0%,#ff5010 40%,transparent 70%),
+    radial-gradient(ellipse 16px 20px at 25% 90%,#ffaa40 0%,#ff6020 50%,transparent 70%);
+  animation:flameDance 0.5s ease-in-out infinite alternate;
+  filter:blur(1px);
+  z-index:2;
+}
+
+/* ── POTION SHELF 材料架 ── */
+.obj-potion-shelf{
+  width:130px;height:104px;
+  background:linear-gradient(180deg,#2a3020 0%,#1a2010 100%);
+  border:2.5px solid #4a5a38;
+  border-radius:3px;
+  overflow:hidden;
+  display:block;
+}
+/* shelf boards */
+.obj-potion-shelf::before{
+  content:'';position:absolute;inset:0;
+  background:
+    linear-gradient(180deg,transparent 46px,#2a1810 46px,#2a1810 50px,transparent 50px),
+    linear-gradient(180deg,transparent 80px,#2a1810 80px,#2a1810 84px,transparent 84px);
+}
+/* colorful potions */
+.obj-potion-shelf::after{
+  content:'';position:absolute;inset:6px 8px;
+  background:
+    /* row 1 – 6 potions */
+    radial-gradient(ellipse 6px 16px at 8%  28%,#cc4040 0%,#8a1a1a 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 22% 28%,#4090cc 0%,#1a508a 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 36% 28%,#40cc70 0%,#1a8a40 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 50% 28%,#cc9a40 0%,#8a6a1a 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 64% 28%,#9a40cc 0%,#601a8a 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 78% 28%,#cc4090 0%,#8a1a5a 60%,transparent 80%),
+    /* row 2 – 5 potions */
+    radial-gradient(ellipse 6px 16px at 12% 70%,#40cccc 0%,#1a8a8a 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 28% 70%,#cc7a40 0%,#8a4a1a 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 44% 70%,#70cc40 0%,#3a8a1a 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 60% 70%,#cc4060 0%,#8a1a30 60%,transparent 80%),
+    radial-gradient(ellipse 6px 16px at 76% 70%,#4060cc 0%,#1a308a 60%,transparent 80%);
+}
+
+/* ── ALTAR 遗物祭坛 ── */
+.obj-altar{
+  width:100px;height:54px;
+  background:linear-gradient(180deg,#4a3050 0%,#2a1830 100%);
+  border:2.5px solid var(--gold-dim);
+  border-radius:5px;
+  overflow:hidden;
+  box-shadow:0 0 14px rgba(100,50,150,0.3),inset 0 0 10px rgba(0,0,0,0.4);
+}
+/* silver inlay lines */
+.obj-altar::before{
+  content:'';position:absolute;inset:5px;
+  border:1px solid rgba(180,180,220,0.3);
+  border-radius:3px;
+  background:
+    linear-gradient(90deg,transparent 30%,rgba(180,180,220,0.08) 50%,transparent 70%),
+    linear-gradient(0deg,transparent 30%,rgba(180,180,220,0.08) 50%,transparent 70%);
+}
+/* rune glow center */
+.obj-altar::after{
+  content:'⟡';position:absolute;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:18px;color:rgba(180,150,255,0.7);
+  text-shadow:0 0 8px rgba(180,150,255,0.5);
+}
+
+/* ── CREST SLOT 凹槽 ── */
+.obj-crest-slot{
+  width:46px;height:46px;
+  border-radius:50%;
+  border:2.5px dashed var(--gold-dim);
+  background:radial-gradient(circle,rgba(201,168,76,0.07) 0%,transparent 70%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:var(--gold-dim);
+  box-shadow:inset 0 0 8px rgba(0,0,0,0.3);
+}
+
+/* Navigation Arrows */
+.nav-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:50;
+  min-width:36px;height:48px;background:rgba(20,16,30,0.92);border:1px solid var(--gold-dim);
+  border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--gold);font-size:1.2em;cursor:pointer;transition:all 0.3s;padding:4px 2px;gap:2px;
+  box-shadow:0 0 12px rgba(0,0,0,0.6)}
+.nav-arrow:hover{background:rgba(201,168,76,0.25);box-shadow:0 0 15px rgba(201,168,76,0.2)}
+.nav-arrow.left{left:8px}
+.nav-arrow.right{right:8px}
+.nav-arrow.disabled{opacity:0.25;pointer-events:none}
+.nav-arrow .nav-label{font-size:0.35em;letter-spacing:0.5px;white-space:nowrap;opacity:0.8}
+
+/* ===== SIDE MESSAGE PANEL ===== */
+#msg-panel{width:240px;background:linear-gradient(180deg,var(--ink),var(--ink-light));
+  border-left:2px solid var(--gold-dim);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+#msg-panel .msg-header{padding:10px;text-align:center;color:var(--gold);font-size:0.85em;
+  letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--gold-dim)}
+#msg-log{flex:1;overflow-y:auto;padding:8px;font-size:0.8em;line-height:1.5}
+#msg-log::-webkit-scrollbar{width:4px}
+#msg-log::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px}
+.msg-entry{padding:6px 8px;margin-bottom:6px;border-left:2px solid var(--gold-dim);
+  color:var(--parchment);animation:fadeMsg 0.4s ease}
+.msg-entry.clue{border-left-color:var(--glow-blue);color:var(--silver-glow)}
+.msg-entry.important{border-left-color:var(--glow-gold);color:var(--gold)}
+.msg-entry.item{border-left-color:var(--glow-green);color:var(--glow-green)}
+@keyframes fadeMsg{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+
+/* ===== INVENTORY BAR ===== */
+#inventory-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;height:64px;
+  background:linear-gradient(180deg,var(--ink-light),var(--ink));
+  border-top:2px solid var(--gold-dim);flex-shrink:0;overflow-x:auto}
+#inventory-bar::-webkit-scrollbar{height:3px}
+#inventory-bar::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px}
+#inv-label{color:var(--gold-dim);font-size:0.7em;text-transform:uppercase;letter-spacing:1px;
+  writing-mode:vertical-lr;margin-right:4px;flex-shrink:0}
+.inv-slot{width:48px;height:48px;border:2px solid var(--gold-dim);border-radius:4px;
+  background:rgba(201,168,76,0.05);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;cursor:pointer;transition:all 0.3s;position:relative;font-size:20px}
+.inv-slot:hover{border-color:var(--gold);background:rgba(201,168,76,0.12);transform:translateY(-2px)}
+.inv-slot.selected{border-color:var(--gold);background:rgba(201,168,76,0.2);
+  box-shadow:0 0 12px rgba(201,168,76,0.4);animation:slotPulse 1.5s ease-in-out infinite}
+@keyframes slotPulse{0%,100%{box-shadow:0 0 12px rgba(201,168,76,0.3)}50%{box-shadow:0 0 20px rgba(201,168,76,0.6)}}
+.inv-slot.empty{opacity:0.3;cursor:default}
+.inv-slot.empty:hover{transform:none;border-color:var(--gold-dim);background:rgba(201,168,76,0.05)}
+.inv-slot .inv-tip{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
+  font-size:0.55em;color:var(--parchment-dark);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.3s;
+  background:var(--ink);padding:1px 6px;border-radius:2px;border:1px solid var(--gold-dim)}
+.inv-slot:hover .inv-tip{opacity:1}
+.inv-slot .inv-count{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;
+  background:var(--burgundy);color:var(--parchment);font-size:0.45em;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--gold-dim)}
+.inv-slot.item-used{animation:itemFlash 0.5s ease}
+@keyframes itemFlash{0%{background:rgba(64,255,144,0.3);transform:scale(1.1)}100%{background:rgba(201,168,76,0.05);transform:scale(1)}}
+.inv-slot.item-gained{animation:itemGain 0.6s ease}
+@keyframes itemGain{0%{opacity:0;transform:scale(0.3) rotate(180deg)}60%{transform:scale(1.15) rotate(-10deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+#inv-count-display{color:var(--gold-dim);font-size:0.7em;margin-left:auto;flex-shrink:0;letter-spacing:0.5px}
+
+/* ===== ACTION BUTTONS ===== */
+#action-btns{display:flex;gap:8px;padding:4px 12px;align-items:center;
+  background:var(--ink);border-top:1px solid var(--gold-dim);flex-shrink:0;height:36px}
+.action-btn{padding:4px 14px;font-size:0.75em;color:var(--gold);background:rgba(201,168,76,0.08);
+  border:1px solid var(--gold-dim);border-radius:3px;letter-spacing:1px;text-transform:uppercase;
+  transition:all 0.3s}
+.action-btn:hover{background:rgba(201,168,76,0.2);box-shadow:0 0 8px rgba(201,168,76,0.2)}
+.action-btn:disabled{opacity:0.3;cursor:default}
+
+/* ===== MODAL SYSTEM ===== */
+#modal-overlay{position:fixed;inset:0;background:rgba(5,5,16,0.85);z-index:100;
+  display:none;align-items:center;justify-content:center;animation:fadeIn 0.3s}
+#modal-overlay.show{display:flex}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{width:min(600px,90vw);max-height:80vh;background:linear-gradient(180deg,#1e1a2a,#141020);
+  border:2px solid var(--gold-dim);border-radius:8px;box-shadow:0 0 40px rgba(201,168,76,0.15),0 0 80px rgba(0,0,0,0.5);
+  overflow:hidden;animation:modalIn 0.3s ease}
+@keyframes modalIn{from{transform:scale(0.95) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.modal-header{padding:14px 18px;border-bottom:1px solid var(--gold-dim);
+  background:linear-gradient(90deg,rgba(201,168,76,0.08),transparent);
+  display:flex;justify-content:space-between;align-items:center}
+.modal-header h3{color:var(--gold);font-size:1em;letter-spacing:1px;font-variant:small-caps}
+.modal-close{color:var(--gold-dim);font-size:1.2em;background:none;padding:4px 8px;
+  border-radius:3px;transition:all 0.2s}
+.modal-close:hover{color:var(--gold);background:rgba(201,168,76,0.15)}
+.modal-body{padding:18px;overflow-y:auto;max-height:60vh;color:var(--parchment);line-height:1.6}
+.modal-body::-webkit-scrollbar{width:5px}
+.modal-body::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:3px}
+
+/* ===== JOURNAL PANEL ===== */
+#journal-panel{position:fixed;top:0;right:-350px;width:340px;height:100%;z-index:90;
+  background:linear-gradient(180deg,#1a1520,#120e18);border-left:2px solid var(--gold-dim);
+  transition:right 0.4s ease;overflow-y:auto;padding:20px}
+#journal-panel.open{right:0}
+#journal-panel h2{color:var(--gold);font-variant:small-caps;letter-spacing:2px;margin-bottom:16px;
+  text-align:center;border-bottom:1px solid var(--gold-dim);padding-bottom:10px}
+.journal-stats{display:flex;justify-content:center;gap:16px;margin-bottom:16px;
+  padding-bottom:12px;border-bottom:1px solid rgba(201,168,76,0.15)}
+.journal-stat{text-align:center;font-size:0.7em;color:var(--gold-dim)}
+.journal-stat .stat-num{font-size:1.4em;color:var(--gold);display:block}
+.journal-cat{margin-bottom:16px}
+.journal-cat h4{color:var(--candle-dim);font-size:0.85em;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:6px;padding-left:8px;border-left:3px solid var(--gold-dim);
+  display:flex;align-items:center;gap:6px}
+.journal-cat h4 .cat-icon{font-size:0.9em}
+.journal-entry{font-size:0.78em;color:var(--parchment-dark);padding:6px 8px 6px 14px;
+  border-left:1px solid var(--gold-dim);margin-bottom:3px;font-style:italic;line-height:1.4;
+  transition:all 0.3s}
+.journal-entry.new{color:var(--gold);animation:journalHighlight 2s ease forwards;
+  background:rgba(201,168,76,0.08);border-radius:2px}
+@keyframes journalHighlight{0%{background:rgba(201,168,76,0.2);color:var(--gold)}
+  70%{background:rgba(201,168,76,0.05)}100%{background:transparent;color:var(--parchment-dark)}}
+.journal-timestamp{font-size:0.7em;color:var(--gold-dim);margin-top:2px;font-style:normal;opacity:0.6}
+
+/* ===== HINT TOOLTIP ===== */
+.hint-box{margin-top:14px;padding:12px;background:rgba(100,150,255,0.08);
+  border:1px solid rgba(100,150,255,0.2);border-radius:4px;font-style:italic;
+  color:var(--silver);font-size:0.9em}
+
+/* ===== PUZZLE SPECIFIC ===== */
+/* Potion Puzzle */
+.potion-ingredients{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:16px 0}
+.potion-ingredient{width:60px;height:80px;border:2px solid var(--gold-dim);border-radius:6px;
+  background:rgba(201,168,76,0.05);cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;transition:all 0.3s;padding:6px}
+.potion-ingredient:hover{background:rgba(201,168,76,0.15);border-color:var(--gold)}
+.potion-ingredient .p-icon{font-size:24px;margin-bottom:4px}
+.potion-ingredient .p-name{font-size:0.6em;color:var(--parchment-dark);text-align:center}
+.potion-ingredient.selected-ing{border-color:var(--glow-green);background:rgba(64,255,144,0.1);
+  box-shadow:0 0 10px rgba(64,255,144,0.2)}
+.potion-ingredient.wrong{border-color:var(--burgundy);background:rgba(107,29,42,0.2)}
+.potion-bowl{width:120px;height:60px;margin:10px auto;background:linear-gradient(180deg,#2a2a3a,#1a1a2a);
+  border:2px solid #4a4a5a;border-radius:0 0 50% 50%;display:flex;align-items:center;
+  justify-content:center;font-size:0.7em;color:var(--silver)}
+.potion-bowl.active{border-color:var(--glow-green);box-shadow:0 0 20px rgba(64,255,144,0.3)}
+
+/* Relic Slots */
+.relic-grid{display:flex;gap:16px;justify-content:center;align-items:center;flex-wrap:wrap;margin:16px 0}
+.relic-slot{width:70px;height:70px;border:2px dashed var(--gold-dim);border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(201,168,76,0.03);cursor:pointer;transition:all 0.3s;font-size:0.65em;
+  color:var(--gold-dim);text-align:center;padding:4px}
+.relic-slot:hover{background:rgba(201,168,76,0.1);border-color:var(--gold)}
+.relic-slot.filled{border-style:solid;border-color:var(--glow-green);background:rgba(64,255,144,0.08);
+  box-shadow:0 0 10px rgba(64,255,144,0.15)}
+.relic-slot .slot-icon{font-size:22px;margin-bottom:2px}
+
+/* Dial Puzzle */
+.dial-container{display:flex;gap:20px;justify-content:center;align-items:center;margin:20px 0}
+.dial{width:80px;height:80px;border:3px solid var(--gold);border-radius:50%;
+  background:radial-gradient(circle,#1a2a4a,#0a1a3a);position:relative;cursor:pointer;
+  transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);box-shadow:0 0 20px rgba(100,150,255,0.2)}
+.dial-symbol{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:28px;color:var(--silver-glow);text-shadow:0 0 10px rgba(160,200,255,0.5);
+  transition:transform 0.4s cubic-bezier(0.4,0,0.2,1)}
+.dial-label{font-size:0.65em;color:var(--gold-dim);text-align:center;margin-top:6px}
+.dial.solved{border-color:var(--glow-green);box-shadow:0 0 25px rgba(64,255,144,0.3)}
+
+/* Fragment display */
+.fragment-display{padding:12px;margin:12px 0;background:rgba(201,168,76,0.05);
+  border:1px solid var(--gold-dim);border-radius:4px;font-style:italic;
+  color:var(--parchment-dark);text-align:center;line-height:1.8}
+
+/* ===== TITLE SCREEN ===== */
+#title-screen{position:fixed;inset:0;z-index:300;background:radial-gradient(ellipse at 50% 40%,#1a1e3a,#0a0e2a 70%,#050510);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  animation:fadeIn 1s}
+#title-screen.hidden{display:none}
+#title-screen h1{font-size:2.4em;color:var(--gold);letter-spacing:4px;font-variant:small-caps;
+  text-shadow:0 0 30px rgba(201,168,76,0.5);margin-bottom:8px;animation:endGlow 2.5s ease-in-out infinite alternate}
+#title-screen .subtitle{color:var(--silver);font-style:italic;font-size:1em;margin-bottom:40px;letter-spacing:2px}
+#title-screen .start-btn{padding:14px 40px;font-size:1.1em;color:var(--gold);background:rgba(201,168,76,0.08);
+  border:2px solid var(--gold);border-radius:6px;letter-spacing:3px;transition:all 0.4s;cursor:pointer;
+  font-family:inherit;text-transform:uppercase}
+#title-screen .start-btn:hover{background:rgba(201,168,76,0.2);box-shadow:0 0 30px rgba(201,168,76,0.3);transform:scale(1.05)}
+#title-screen .title-particles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#title-screen .tp{position:absolute;width:4px;height:4px;border-radius:50%;opacity:0;
+  animation:floatParticle 5s ease-in-out infinite}
+
+/* ===== ENDING OVERLAY ===== */
+#ending-overlay{position:fixed;inset:0;z-index:200;background:rgba(5,5,16,0.95);
+  display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;
+  animation:fadeIn 1.5s}
+#ending-overlay.show{display:flex}
+#ending-overlay h1{color:var(--gold);font-size:2em;font-variant:small-caps;letter-spacing:4px;
+  margin-bottom:20px;text-shadow:0 0 30px rgba(201,168,76,0.5);animation:endGlow 2s ease-in-out infinite alternate}
+@keyframes endGlow{from{text-shadow:0 0 30px rgba(201,168,76,0.3)}to{text-shadow:0 0 50px rgba(201,168,76,0.7)}}
+#ending-overlay .end-text{max-width:500px;color:var(--parchment);line-height:1.8;font-size:0.95em;margin-bottom:30px}
+#ending-overlay .restart-btn{padding:10px 30px;color:var(--gold);background:rgba(201,168,76,0.1);
+  border:2px solid var(--gold);border-radius:4px;font-size:1em;letter-spacing:2px;
+  transition:all 0.3s;cursor:pointer}
+#ending-overlay .restart-btn:hover{background:rgba(201,168,76,0.25);box-shadow:0 0 20px rgba(201,168,76,0.3)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+  #msg-panel{display:none}
+  .modal{width:95vw}
+}
+@media(max-width:600px){
+  #top-bar .title{font-size:0.85em}
+  #top-bar .progress-bar{width:80px}
+  .inv-slot{width:40px;height:40px;font-size:16px}
+}
+</style>
+</head>
+<body>
+<!-- Title Screen -->
+<div id="title-screen">
+  <div class="title-particles" id="title-particles"></div>
+  <h1>✦ Tech学院 ✦</h1>
+  <p class="subtitle">一座充满魔法秘密的城堡</p>
+  <button class="start-btn" onclick="startGame()">进入学院</button>
+  <p style="color:var(--parchment-dark);font-size:0.7em;margin-top:30px;font-style:italic">
+    点击解谜冒险 · 探索 · 发现 · 逃脱
+  </p>
+</div>
+
+<div id="app" style="display:none">
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <span class="title">✦ Tech学院 ✦</span>
+    <span class="room-name" id="room-name">入口大厅</span>
+    <span class="progress">
+      <span id="progress-text">0%</span>
+      <span class="progress-bar"><span class="progress-fill" id="progress-fill" style="width:0%"></span></span>
+      <span class="room-indicator">
+        <span class="room-dot current" id="dot-entrance" title="入口大厅"></span>
+        <span class="room-dot locked" id="dot-library" title="大图书馆"></span>
+        <span class="room-dot locked" id="dot-potion" title="药剂室"></span>
+        <span class="room-dot locked" id="dot-relics" title="遗物厅"></span>
+        <span class="room-dot locked" id="dot-study" title="院长书房"></span>
+      </span>
+    </span>
+  </div>
+
+  <!-- Main Area -->
+  <div id="main-area">
+    <div id="viewport">
+      <!-- Rooms injected by JS -->
+    </div>
+    <div id="msg-panel">
+      <div class="msg-header">✦ 编年录 ✦</div>
+      <div id="msg-log"></div>
+    </div>
+  </div>
+
+  <!-- Inventory -->
+  <div id="inventory-bar">
+    <span id="inv-label">行囊</span>
+  </div>
+
+  <!-- Action Buttons -->
+  <div id="action-btns">
+    <button class="action-btn" id="btn-journal" onclick="toggleJournal()">📓 日志</button>
+    <button class="action-btn" id="btn-hint" onclick="showHint()">💡 提示</button>
+    <button class="action-btn" id="btn-inspect" onclick="inspectSelected()" disabled>🔍 检视</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">检视</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Journal -->
+<div id="journal-panel">
+  <h2>📓 Tech日志</h2>
+  <div id="journal-content"></div>
+</div>
+
+<!-- Ending -->
+<div id="ending-overlay">
+  <h1>✦ 自由之门 ✦</h1>
+  <div class="end-text" id="ending-text"></div>
+  <button class="restart-btn" onclick="restartGame()">重新开始</button>
+</div>
+
+<script>
+// ===========================
+// GAME STATE
+// ===========================
+const G = {
+  currentRoom: 'entrance',
+  inventory: [],
+  selectedItem: null,
+  flags: {},
+  journal: { phrases: [], symbols: [], elements: [], history: [], observations: [] },
+  messages: [],
+  hintLevel: {},
+  puzzlesSolved: 0,
+  totalPuzzles: 6,
+};
+
+// Flag helpers
+const hasFlag = f => !!G.flags[f];
+const setFlag = f => { G.flags[f] = true; };
+const hasItem = id => G.inventory.some(i => i.id === id);
+const addItem = item => {
+  if (!hasItem(item.id)) {
+    G.inventory.push(item);
+    const idx = G.inventory.length - 1;
+    updateInventory(idx);
+    addMsg(`获得：${item.name}`, 'item');
+  }
+};
+const removeItem = id => {
+  const idx = G.inventory.findIndex(i => i.id === id);
+  G.inventory = G.inventory.filter(i => i.id !== id);
+  if (G.selectedItem === id) G.selectedItem = null;
+  updateInventory();
+  if (idx >= 0) addMsg(`使用：${ITEMS[id]?.name || id}`, 'important');
+};
+const selectItem = id => { G.selectedItem = G.selectedItem === id ? null : id; updateInventory(); };
+
+// ===========================
+// ITEM DEFINITIONS
+// ===========================
+const ITEMS = {
+  bronze_key: { id:'bronze_key', name:'青铜钥匙', icon:'🗝️', desc:'一把刻有科技铭文的古旧青铜钥匙。它似乎适合入口大厅中某把旧锁。' },
+  torn_page: { id:'torn_page', name:'残页碎片', icon:'📜', desc:'一张从古籍上撕下的脆弱书页，上面记载着仪式咒语的片段和奇怪的符号。' },
+  empty_vial: { id:'empty_vial', name:'空水晶瓶', icon:'🧪', desc:'一只小巧的水晶瓶，空无一物却微微震颤着残存的魔力。它等待着正确的精华注入。' },
+  luminous_essence: { id:'luminous_essence', name:'光辉精华', icon:'✨', desc:'水晶瓶此刻散发着柔和而超凡的光芒——这是通过元素和谐提炼出的纯净科技精华。' },
+  crest_medallion: { id:'crest_medallion', name:'家族纹章勋章', icon:'🪙', desc:'一枚刻有建院家族纹章的勋章，它脉动着古老的辨识魔力。' },
+  rune_stone: { id:'rune_stone', name:'符文石', icon:'🪨', desc:'一块刻有发光符文的平滑石头，它与古老结界的魔力产生共鸣。' },
+  astral_dial: { id:'astral_dial', name:'星盘碎片', icon:'🔮', desc:'一件天体仪器的部件。正确对齐后，它能揭示星辰中隐藏的图案。' },
+  silver_key: { id:'silver_key', name:'银钥匙', icon:'🔑', desc:'一把工艺精湛的银钥匙，触手温热。它蕴含着解除最终封印的权威。' },
+};
+
+// ===========================
+// ROOM DEFINITIONS
+// ===========================
+const ROOMS = {
+  entrance: {
+    name: '入口大厅',
+    nav: { left: null, right: 'library', rightLabel: '→ 大图书馆' },
+    objects: [
+      { id:'chandelier', label:'枝形吊灯', x:38, y:2, w:110, h:36, cls:'obj-chandelier',
+        desc:'一盏悬挂于穹顶之下的华丽铁制吊灯。数十支蜡烛在大厅中投射出温暖而变幻的光芒。' },
+      { id:'portrait', label:'创始者画像', x:38, y:8, w:100, h:130, cls:'obj-portrait',
+        desc:'学院创始人瓦尔德里斯大法师的巨幅画像。他那画中的目光似乎在追随着你。画布在特定光线下泛着不寻常的微光……' },
+      { id:'candle_entrance', label:'烛台', x:22, y:15, w:36, h:72, cls:'obj-candle',
+        desc:'一盏黄铜壁烛台上的摇曳烛火。火焰跳动着近乎魔性的舞姿，在画像上投下奇异的阴影。' },
+      { id:'candle_entrance2', label:'烛台', x:62, y:15, w:36, h:72, cls:'obj-candle',
+        desc:'右侧壁上的另一盏烛台，与左侧的遥相呼应，共同照亮大厅。' },
+      { id:'fireplace', label:'石砌壁炉', x:3, y:42, w:110, h:88, cls:'obj-fireplace',
+        desc:'一座宏大的石砌壁炉，火焰呈现不寻常的翡翠色泽。壁炉台上雕刻着盘旋的蛇纹和科技符文。' },
+      { id:'entrance_rune', label:'门楣符文', x:40, y:55, w:40, h:40, cls:'obj-rune',
+        desc:'大门上方的石质符文，已风化但仍散发着微弱的魔力脉动。似乎是某种欢迎或警示的铭刻。' },
+      { id:'cabinet', label:'上锁的柜子', x:55, y:48, w:85, h:105, cls:'obj-cabinet',
+        desc:'一只沉重的胡桃木柜子，配有华丽的青铜锁。其中藏有珍贵之物。你需要正确的钥匙才能打开它。' },
+      { id:'hall_door', label:'东向通道', x:82, y:28, w:55, h:100, cls:'obj-door',
+        desc:'一道通往学院深处的拱门。从其中飘来古旧羊皮纸的淡淡气息。' },
+    ],
+  },
+  library: {
+    name: '大图书馆',
+    nav: { left: 'entrance', right: 'potion', leftLabel: '← 入口大厅', rightLabel: '→ 药剂室' },
+    objects: [
+      { id:'bookshelf_main', label:'元素书架', x:3, y:8, w:100, h:140, cls:'obj-bookshelf',
+        desc:'标有"元素哲学与自然科技"的书架区。这里的书籍以翠绿皮革装帧，似乎在彼此低语。' },
+      { id:'library_window', label:'彩绘花窗', x:80, y:5, w:70, h:110, cls:'obj-window',
+        desc:'一扇描绘四元素和谐旋转的彩绘玻璃窗。月光透过窗面，在地板上绘出银色的图案。' },
+      { id:'globe', label:'星轨仪', x:22, y:48, w:48, h:48, cls:'obj-globe',
+        desc:'一只附魔的星轨仪，星座缓缓旋转。若凝视良久，群星似乎组成文字——但它们总在你读出之前重新排列。' },
+      { id:'lib_candle', label:'烛台', x:40, y:12, w:36, h:72, cls:'obj-candle',
+        desc:'阅览区中央的铜烛台，为阅读者提供温暖的光芒。' },
+      { id:'special_book', label:'发光典籍', x:42, y:35, w:32, h:44, cls:'obj-book',
+        desc:'一本脉动着微弱内光的典籍。书脊上写着：《元素会聚之诗》。' },
+      { id:'reading_table', label:'阅览桌', x:38, y:58, w:115, h:54, cls:'obj-table',
+        desc:'一张抛光的橡木阅览桌。散落的笔记和羽毛笔暗示最近有人在研读。一张便条引起了你的注意……' },
+      { id:'tapestry', label:'古老挂毯', x:60, y:20, w:80, h:120, cls:'obj-tapestry',
+        desc:'一幅描绘学院创建的褪色挂毯。边框织有与古籍中相同的符号。' },
+      { id:'lib_rune', label:'地砖符文', x:45, y:75, w:40, h:40, cls:'obj-rune',
+        desc:'地板上镶嵌的古老符文石，与图书馆中的元素知识产生共鸣。' },
+      { id:'lib_door_right', label:'西向通道', x:3, y:40, w:50, h:90, cls:'obj-door',
+        desc:'通往入口大厅的通道。' },
+      { id:'lib_door_potion', label:'北向通道', x:82, y:35, w:50, h:90, cls:'obj-door',
+        desc:'一条狭窄的下行通道。空气中弥漫着草药和炼金术的气息。' },
+    ],
+  },
+  potion: {
+    name: '药剂室',
+    nav: { left: 'library', right: 'relics', leftLabel: '← 大图书馆', rightLabel: '→ 遗物厅' },
+    objects: [
+      { id:'potion_shelf', label:'材料架', x:3, y:5, w:100, h:85, cls:'obj-potion-shelf',
+        desc:'架子上排列着装着奇异材料的药瓶。你可以辨认出四种不同的元素材料。' },
+      { id:'pot_candle', label:'烛台', x:42, y:10, w:36, h:72, cls:'obj-candle',
+        desc:'实验台旁的铜烛台，为精密的炼药操作提供照明。' },
+      { id:'potion_mirror', label:'银镜', x:22, y:52, w:50, h:68, cls:'obj-mirror',
+        desc:'一面华丽的银镜。仔细凝视，镜中映出此室昔日的模样——架子上满是沸腾的药剂，坩埚升腾着科技蒸汽。' },
+      { id:'cauldron', label:'科技坩埚', x:38, y:32, w:72, h:64, cls:'obj-cauldron',
+        desc:'一口刻有元素符文的大铁坩埚，架在无需燃料的魔法热源之上。它可以用来炼制某种强力的东西。' },
+      { id:'bottle_empty', label:'玻璃器具', x:62, y:50, w:18, h:38, cls:'obj-bottle',
+        desc:'炼药用的精致玻璃器具，目前闲置。' },
+      { id:'bottle_empty2', label:'玻璃器具', x:68, y:42, w:18, h:38, cls:'obj-bottle',
+        desc:'另一只空的玻璃器皿，散发着淡淡的化学残留气息。' },
+      { id:'potion_rune', label:'室壁符文', x:78, y:8, w:40, h:40, cls:'obj-rune',
+        desc:'一面刻在石壁上的符文，微弱发光。它刻有转化之印。' },
+      { id:'pot_door_left', label:'东向通道', x:3, y:45, w:50, h:85, cls:'obj-door',
+        desc:'通往大图书馆的通道。' },
+      { id:'pot_door_right', label:'西向通道', x:82, y:45, w:50, h:85, cls:'obj-door',
+        desc:'一条通往学院深处的通道。一道古老的结界在门槛上闪烁……' },
+    ],
+  },
+  relics: {
+    name: '遗物厅',
+    nav: { left: 'potion', right: 'study', leftLabel: '← 药剂室', rightLabel: '→ 院长书房' },
+    objects: [
+      { id:'relic_painting', label:'创始画作', x:35, y:3, w:100, h:75, cls:'obj-painting',
+        desc:'一幅描绘三位创建者立于学院门前的画作。每人手持一件神器——勋章、石头和光之瓶。' },
+      { id:'relic_rune', label:'守护符文', x:5, y:8, w:40, h:40, cls:'obj-rune',
+        desc:'入口旁的守护符文，为遗物厅提供额外的结界保护。符文脉动如心跳。' },
+      { id:'relic_fireplace', label:'永恒之焰', x:15, y:42, w:100, h:85, cls:'obj-fireplace',
+        desc:'一炉无需燃料便燃烧了数百年的火焰。火焰呈银金色，不投阴影。' },
+      { id:'relic_candle', label:'烛台', x:40, y:18, w:36, h:72, cls:'obj-candle',
+        desc:'祭坛旁的长明烛台，为圣殿提供永恒的微光。' },
+      { id:'relic_altar', label:'遗物祭坛', x:35, y:42, w:100, h:54, cls:'obj-altar',
+        desc:'一座镶嵌银丝的暗石圣坛。表面有三个明显的凹槽，各自等待一件力量神器。' },
+      { id:'crest_slot', label:'纹章凹槽', x:28, y:52, w:42, h:42, cls:'obj-crest-slot',
+        desc:'祭坛上的圆形凹槽，恰好可嵌入一枚勋章。铭文写道："创始者之印"。' },
+      { id:'rune_slot', label:'符文凹槽', x:44, y:52, w:42, h:42, cls:'obj-crest-slot',
+        desc:'祭坛上的方形凹槽，刻有守卫符文。它等待一枚符文基石。铭文写道："守望者之记"。' },
+      { id:'essence_slot', label:'精华凹槽', x:60, y:52, w:42, h:42, cls:'obj-crest-slot',
+        desc:'一个似乎渴求光明的水晶凹槽。它等待纯净的光之能量。铭文写道："无界之光"。' },
+      { id:'rel_door_left', label:'南向通道', x:3, y:35, w:50, h:90, cls:'obj-door',
+        desc:'通往药剂室的通道。' },
+      { id:'rel_door_right', label:'北向通道', x:82, y:35, w:50, h:90, cls:'obj-door locked',
+        desc:'一条被强大结界封印的通道。唯有在遗物祭坛证明自身资格者方可通过。' },
+    ],
+  },
+  study: {
+    name: '院长书房',
+    nav: { left: 'relics', right: null, leftLabel: '← 遗物厅' },
+    objects: [
+      { id:'study_window', label:'观星窗', x:75, y:3, w:70, h:110, cls:'obj-window',
+        desc:'一扇巨大的拱形窗，窗外是不可能的星座。凡世天空中不存在的星辰在头顶缓缓转动。' },
+      { id:'astral_dial_slot', label:'星盘机关', x:38, y:3, w:55, h:55, cls:'obj-globe',
+        desc:'嵌在墙中的精密机关——星盘的基座。它有多重旋转环，每环刻有科技符号。中央插槽为空。' },
+      { id:'study_bookshelf', label:'禁书架', x:3, y:5, w:100, h:140, cls:'obj-bookshelf',
+        desc:'一架上排列着禁书。其中一本《论封印之门》似乎被人撕去了一页……' },
+      { id:'study_chair', label:'高背椅', x:22, y:52, w:50, h:70, cls:'obj-tapestry',
+        desc:'一把覆以深红丝绒的威严高背椅。院长的沉思之座。你能感受到残留的思绪，如同久远决断的回响。' },
+      { id:'study_desk', label:'院长书桌', x:38, y:55, w:130, h:60, cls:'obj-desk',
+        desc:'一张覆盖着星图和翻开魔法书的大红木书桌。木纹似乎在你没有直视时如流水般移动。' },
+      { id:'study_candle', label:'烛台', x:55, y:38, w:36, h:72, cls:'obj-candle',
+        desc:'书桌旁的银烛台，蜡油缓缓滴落，为夜读的院长照亮书页。' },
+      { id:'study_rune', label:'星辰符文', x:65, y:65, w:40, h:40, cls:'obj-rune',
+        desc:'地面上镶嵌的星辰符文，与窗外的星座遥相呼应，似乎是某种天文定位的标记。' },
+      { id:'final_door', label:'封印之门', x:80, y:25, w:50, h:90, cls:'obj-door locked',
+        desc:'一扇被古老结界封印的门。门面上嵌有三重银环。锁孔泛着月光。这是出路——或更深处的入口。' },
+      { id:'study_door_left', label:'西向通道', x:3, y:38, w:50, h:85, cls:'obj-door',
+        desc:'通往遗物厅的通道。' },
+    ],
+  },
+};
+
+// ===========================
+// JOURNAL DEFINITIONS
+// ===========================
+const JOURNAL_ENTRIES = {
+  portrait_message: { cat:'phrases', text:'"火焰揭示真相之处，创始者的目光对寻找元素会聚之人诉说。"' },
+  book_poem: { cat:'elements', text:'"先是深饮之根，\n再是拉岸之潮，\n三是醒眠之火，\n最后穿堂之风。"' },
+  symbol_order: { cat:'symbols', text:'部分符号序列已复原：◆ … ▲ … ● … ✦（顺序不完整，位置未知）' },
+  library_note: { cat:'observations', text:'阅览桌上的便条写道："创始者未将钥匙藏于锁中，而是置于永不熄灭的火焰之内——入口大厅的壁炉之中。"' },
+  torn_fragment: { cat:'phrases', text:'残页碎片写道："当三印归位、星盘转正，最终之门将为初代大法师的银钥匙所开。"' },
+  element_meaning: { cat:'elements', text:'诗中暗含元素顺序：土（根）→ 水（潮）→ 火（焰）→ 风（风）' },
+  founding_history: { cat:'history', text:'三位创建者建立了学院：智者瓦尔德里斯、炼金师瑟拉菲娜和守望者瑟隆。每人留下了一件守护神器。' },
+  relic_lore: { cat:'history', text:'创建者的神器——纹章勋章、符文石和光辉精华——必须在遗物祭坛上合为一体，以证明资格。' },
+  dial_symbols: { cat:'symbols', text:'星盘符号对应：◆ 土、● 水、▲ 火、✦ 风' },
+  final_sequence: { cat:'symbols', text:'完整对齐序列：◆ 土 → ● 水 → ▲ 火 → ✦ 风' },
+};
+
+function addJournal(key) {
+  const entry = JOURNAL_ENTRIES[key];
+  if (!entry || G.journal[entry.cat].includes(entry.text)) return;
+  G.journal[entry.cat].push(entry.text);
+  updateJournal(key);
+  const catNames = { phrases:'铭文', symbols:'符号', elements:'元素', history:'历史', observations:'观察' };
+  addMsg(`日志更新——发现新的${catNames[entry.cat] || entry.cat}条目。`, 'clue');
+}
+
+// ===========================
+// PUZZLE / INTERACTION LOGIC
+// ===========================
+
+function handleObjectClick(objId) {
+  const room = ROOMS[G.currentRoom];
+  const obj = room.objects.find(o => o.id === objId);
+  if (!obj) return;
+
+  switch(G.currentRoom) {
+    case 'entrance': handleEntrance(objId); break;
+    case 'library': handleLibrary(objId); break;
+    case 'potion': handlePotion(objId); break;
+    case 'relics': handleRelics(objId); break;
+    case 'study': handleStudy(objId); break;
+  }
+}
+
+function handleEntrance(objId) {
+  switch(objId) {
+    case 'portrait':
+      if (!hasFlag('portrait_examined')) {
+        setFlag('portrait_examined');
+        showModal('创始者画像', `<p>瓦尔德里斯大法师的巨幅画像。他那画中的目光似乎带着洞悉一切的灼热追随着你。</p><p>仔细端详，画布泛着不寻常的微光——仿佛有什么东西隐藏在颜料之下……</p><p style="color:var(--silver);font-style:italic">也许恰当的光线能揭示隐藏之物。</p>`);
+      } else if (hasFlag('candle_used_on_portrait')) {
+        setFlag('portrait_message_found');
+        showModal('创始者画像——隐文显现', `<p style="color:var(--glow-gold)">隐藏的铭文在烛光下清晰显现：</p><p style="color:var(--candle);font-style:italic;padding:12px;border:1px solid var(--gold-dim);border-radius:4px;margin:10px 0">"火焰揭示真相之处，创始者的目光对寻找元素会聚之人诉说。"</p><p style="color:var(--silver)">这段话似乎指向关于元素的知识——也许在大图书馆中？</p>`);
+        addJournal('portrait_message');
+      } else {
+        showModal('创始者画像', `<p>画像微微泛光。隐文就在那里，但你需要足够近的光源才能让它显现。</p><p style="color:var(--silver);font-style:italic">旁边的烛台或许能帮忙，如果你能把它的光线移近一些……</p>`);
+      }
+      break;
+
+    case 'candle_entrance':
+      if (!hasFlag('candle_used_on_portrait')) {
+        setFlag('candle_used_on_portrait');
+        setFlag('portrait_message_found');
+        addMsg('你小心地将烛台转向画像。烛光落在画布上，隐墨开始发光……', 'important');
+        showModal('隐文显现', `<p>当烛光掠过画像，科技墨迹在画布上显现——在普通光线下不可见，却在火焰中熠熠生辉。</p><p style="color:var(--candle);font-style:italic;padding:12px;border:1px solid var(--gold-dim);border-radius:4px;margin:10px 0">"火焰揭示真相之处，创始者的目光对寻找元素会聚之人诉说。"</p><p>一条线索！这段话指向大图书馆中的某些知识——关于元素的秘密。</p>`);
+        addJournal('portrait_message');
+      } else {
+        showModal('烛台', `<p>烛火平稳燃烧。你已用它的光线揭示了画像的秘密。</p>`);
+      }
+      break;
+
+    case 'cabinet':
+      if (hasFlag('cabinet_opened')) {
+        showModal('打开的柜子', `<p>柜子已然敞开，其中的秘密已被取走。</p>`);
+      } else if (G.selectedItem === 'bronze_key') {
+        setFlag('cabinet_opened');
+        removeItem('bronze_key');
+        addItem({...ITEMS.empty_vial});
+        addItem({...ITEMS.crest_medallion});
+        addMsg('青铜钥匙发出令人满足的咔嗒声。柜中：一只水晶瓶和一枚家族纹章勋章！', 'item');
+        showModal('柜子已开', `<p>青铜钥匙完美契合。锁扣应声而开，柜中你发现了：</p><p style="color:var(--glow-green)">✦ 空水晶瓶——嗡鸣着残存的魔力</p><p style="color:var(--glow-green)">✦ 家族纹章勋章——刻有创始者之印</p><p>两件物品在前方的房间里可能至关重要。</p>`);
+      } else {
+        showModal('上锁的柜子', `<p>一只沉重的胡桃木柜子，配有华丽的青铜锁。没有正确的钥匙，你无法打开它。</p><p style="color:var(--silver);font-style:italic">你需要找到一把青铜钥匙……</p>`);
+      }
+      break;
+
+    case 'fireplace':
+      if (hasFlag('library_note_read') && !hasFlag('bronze_key_found')) {
+        setFlag('bronze_key_found');
+        addItem({...ITEMS.bronze_key});
+        addMsg('依照图书馆便条的线索，你伸手探入翡翠色的火焰——竟然是凉的！你的手指握住了一把钥匙。', 'item');
+        showModal('壁炉秘密', `<p>想起图书馆中的便条，你伸手探入翡翠色的火焰。令你震惊的是，火焰竟然冰凉——那是魔法幻象！</p><p>火焰背后，你的手指触到了冰冷的铁器：一把青铜钥匙，已在此藏匿数百年。</p><p style="color:var(--glow-green)">✦ 获得：青铜钥匙</p><p style="color:var(--silver);font-style:italic">也许它能打开大厅中那把上锁的柜子。</p>`);
+      } else if (hasFlag('bronze_key_found')) {
+        showModal('石砌壁炉', `<p>翡翠色的火焰继续永恒的舞姿。你已找到隐藏于此的一切。</p>`);
+      } else {
+        showModal('石砌壁炉', `<p>一座宏大的石砌壁炉，火焰呈现不寻常的翡翠色泽。壁炉台上雕刻着盘旋的蛇纹和科技符文。</p><p style="color:var(--silver);font-style:italic">火焰似乎出奇地诱人……但你还没有理由把手伸进火中。</p>`);
+      }
+      break;
+
+    case 'chandelier':
+      showModal('枝形吊灯', `<p>一盏华丽的铁制吊灯，数十支蜡烛在大厅中投射出变幻的光影。光线在墙壁上创造出迷人的图案。</p><p style="color:var(--silver);font-style:italic">这是学院魔法工艺的杰作。</p>`);
+      break;
+
+    case 'candle_entrance2':
+      showModal('烛台', `<p>右侧壁上的铜烛台，与左侧的遥相呼应。火焰平稳燃烧，在大厅中投下温暖而变幻的光影。</p>`);
+      break;
+
+    case 'entrance_rune':
+      showModal('门楣符文', `<p>一块嵌入石壁的古老符文石。上面的刻痕已被岁月磨平，但残存的魔力仍在微微脉动——如同城堡的心跳。</p><p style="color:var(--silver);font-style:italic">这似乎只是装饰性的铭刻，而非解谜的关键。</p>`);
+      break;
+
+    case 'hall_door':
+      navigateTo('library');
+      break;
+  }
+}
+
+function handleLibrary(objId) {
+  switch(objId) {
+    case 'bookshelf_main':
+      if (!hasFlag('portrait_message_found')) {
+        showModal('元素书架', `<p>书架上摆满了关于元素哲学和自然科技的论著。没有明确的指引，想找到有用的东西恐怕要花上数小时。</p><p style="color:var(--silver);font-style:italic">你需要一条线索来知道该找什么……</p>`);
+      } else if (!hasFlag('bookshelf_searched')) {
+        setFlag('bookshelf_searched');
+        setFlag('special_book_visible');
+        addMsg('循着画像的线索，你在元素典籍中发现了一本脉动着内光的书卷……', 'important');
+        showModal('元素书架——发现', `<p>循着画像关于"元素会聚"的提示，你的目光被引向一个特定区域。在布满灰尘的书卷中，一本典籍脉动着微弱的光芒——仿佛一直在等待你的到来。</p><p style="color:var(--gold)">书脊上写着：《元素会聚之诗》</p><p>你应该仔细检视这本书。</p>`);
+      } else {
+        showModal('元素书架', `<p>你已在此找到了重要的典籍。其余的书卷虽引人入胜，但目前并无直接关联。</p>`);
+      }
+      break;
+
+    case 'special_book':
+      if (!hasFlag('special_book_visible')) {
+        showModal('旧典籍', `<p>一本皮革封面的大书，落满灰尘，貌不惊人。似乎没什么值得关注的内容。</p>`);
+      } else if (!hasFlag('special_book_read')) {
+        setFlag('special_book_read');
+        addItem({...ITEMS.torn_page});
+        addJournal('book_poem');
+        addJournal('symbol_order');
+        addJournal('founding_history');
+        addMsg('发光的典籍中掉出一张残页碎片，还有关于四元素的神秘诗句！', 'important');
+        showModal('元素会聚之诗', `
+          <p>当你翻开典籍，光芒从书页中溢出。其中一页已被撕去——但残页仍夹在书叶之间。</p>
+          <div class="fragment-display">
+            <p style="color:var(--glow-gold)">"先是深饮之根，<br>
+            再是拉岸之潮，<br>
+            三是醒眠之火，<br>
+            最后穿堂之风。"</p>
+          </div>
+          <p style="color:var(--silver)">残页上还印有部分符号序列：◆ … ▲ … ● … ✦</p>
+          <p style="color:var(--glow-green)">✦ 获得：残页碎片</p>
+          <p>日志已更新。</p>`);
+      } else {
+        showModal('元素会聚之诗', `<p>典籍的光芒已暗淡。你已领悟其中的秘密——诗句和符号已记录在日志中。</p>`);
+      }
+      break;
+
+    case 'reading_table':
+      if (!hasFlag('library_note_read')) {
+        setFlag('library_note_read');
+        addJournal('library_note');
+        addMsg('阅览桌上的便条引起了你的注意——上面写着一把藏在火焰中的钥匙！', 'clue');
+        showModal('阅览桌便条', `<p>在散落的纸张中，一张便条格外醒目——字迹潦草：</p>
+          <div class="fragment-display">
+            <p style="color:var(--candle)">"创始者未将钥匙藏于锁中，而是置于永不熄灭的火焰之内——入口大厅的壁炉之中。"</p>
+          </div>
+          <p style="color:var(--silver)">永不熄灭的火焰……入口大厅壁炉中那翡翠色的火焰！</p>
+          <p>日志已记录此线索。</p>`);
+      } else {
+        showModal('阅览桌', `<p>桌上散落着笔记和羽毛笔。你已在此找到了重要的信息。</p>`);
+      }
+      break;
+
+    case 'library_window':
+      showModal('彩绘花窗', `<p>四元素以和谐旋转之姿呈现在窗面上：大地为根，流水上行，火焰升腾，清风环绕。月光在地板上绘出银色的图案。</p><p style="color:var(--silver);font-style:italic">窗面的意象与元素会聚之诗相互呼应……</p>`);
+      break;
+
+    case 'globe':
+      showModal('星轨仪', `<p>星座缓缓旋转，当你凝神细看，某些星辰似乎组成了文字——但它们总在你读出之前重新排列。一个令人心痒的谜题，留待他日。</p>`);
+      break;
+
+    case 'tapestry':
+      addJournal('founding_history');
+      showModal('古老挂毯', `<p>挂毯描绘了学院的创建：三人立于学院门前，各持一件神器。边框织有与古籍中相同的符号。</p><p style="color:var(--silver)">三位创建者——瓦尔德里斯、瑟拉菲娜和瑟隆——各留下了一件守护神器。</p>`);
+      break;
+
+    case 'lib_candle':
+      showModal('烛台', `<p>书架旁的铜烛台为阅读者提供温暖的光芒。蜡油缓缓滴落，在台座上凝成小小的蜡池。</p>`);
+      break;
+
+    case 'lib_rune':
+      showModal('地砖符文', `<p>地板上镶嵌的古老符文石。触摸时，它微微发光——这是学院建筑的基础结界的一部分，维持着图书馆的恒温与湿度，保护珍贵的藏书。</p>`);
+      break;
+
+    case 'lib_door_right':
+      navigateTo('entrance');
+      break;
+    case 'lib_door_potion':
+      navigateTo('potion');
+      break;
+  }
+}
+
+function handlePotion(objId) {
+  switch(objId) {
+    case 'cauldron':
+      if (hasFlag('potion_solved')) {
+        showModal('科技坩埚', `<p>坩埚仍辉映着你成功炼制的精华。它已然耗尽——使命已完成。</p>`);
+      } else if (!hasItem('empty_vial') && !hasItem('luminous_essence')) {
+        showModal('科技坩埚', `<p>一口刻有元素符文的大铁坩埚。它可以用来炼制某种强力的东西，但你没有容器来盛装成品。</p><p style="color:var(--silver);font-style:italic">你需要一个容器——也许是一只空水晶瓶？</p>`);
+      } else if (hasItem('luminous_essence')) {
+        showModal('科技坩埚', `<p>坩埚已耗尽。你已成功炼制了光辉精华。</p>`);
+      } else {
+        openPotionPuzzle();
+      }
+      break;
+
+    case 'potion_shelf':
+      if (hasFlag('potion_solved')) {
+        showModal('材料架', `<p>架上的材料已被取用。你已用掉了所需的材料。</p>`);
+      } else if (!hasItem('empty_vial')) {
+        showModal('材料架', `<p>架上排列着奇异的材料：结晶土根、月水酊剂、凤凰灰和瓶装微风。四元素，四精华。</p><p style="color:var(--silver);font-style:italic">你可以在此炼制，但需要容器来盛装成品。</p>`);
+      } else {
+        showModal('材料架', `<p>四种元素材料整齐排列：</p>
+          <ul style="margin:10px 0;padding-left:20px;line-height:2">
+            <li style="color:#8a6a3a">◆ <strong>土根精华</strong>——深层石中结晶而成</li>
+            <li style="color:#4a7a9a">● <strong>月水酊剂</strong>——月潮凝练而成</li>
+            <li style="color:#aa4a2a">▲ <strong>凤凰灰烬</strong>——不灭之火的余烬</li>
+            <li style="color:#7a9a7a">✦ <strong>微风精华</strong>——山间罡风所化</li>
+          </ul>
+          <p style="color:var(--silver)">坩埚等待正确的顺序。查阅日志寻找线索……</p>`);
+      }
+      break;
+
+    case 'bottle_empty':
+      showModal('玻璃器具', `<p>炼药用的精致玻璃器具。它提醒你在炼金术中，精确和正确的顺序至关重要。</p>`);
+      break;
+
+    case 'bottle_empty2':
+      showModal('玻璃器具', `<p>另一只空的玻璃器皿，散发着淡淡的化学残留气息。似乎曾盛放过某种酸液，瓶壁上有细微的蚀刻痕迹。</p>`);
+      break;
+
+    case 'pot_candle':
+      showModal('烛台', `<p>实验台旁的铜烛台。在炼金术中，烛火不仅提供照明，更是控制温度的重要工具。它的光芒温暖而稳定。</p>`);
+      break;
+
+    case 'potion_rune':
+      showModal('室壁符文', `<p>转化之印在墙上微弱发光——它提醒你在炼金术中，顺序至关重要。元素序列决定了转化的本质。</p><p style="color:var(--silver);font-style:italic">"先是根基，再是潮涌，三是星火，最后是气息。"</p>`);
+      break;
+
+    case 'potion_mirror':
+      showModal('银镜', `<p>镜子映出此室昔日的模样：架上满是沸腾的药剂，坩埚升腾着蒸汽，一位身着长袍的身影正在逐一添加材料——土、水、火、风——正是那个顺序。</p><p style="color:var(--silver)">幽影般的倒影消散了，但顺序铭记在你心中。</p>`);
+      break;
+
+    case 'pot_door_left':
+      navigateTo('library');
+      break;
+    case 'pot_door_right':
+      navigateTo('relics');
+      break;
+  }
+}
+
+function handleRelics(objId) {
+  switch(objId) {
+    case 'relic_altar':
+      showModal('遗物祭坛', `<p>一座镶嵌银丝的暗石圣坛，上有三个凹槽，各刻有古老铭文：</p>
+        <ul style="margin:10px 0;padding-left:20px;line-height:2">
+          <li>"创始者之印"——等待一枚勋章</li>
+          <li>"守望者之记"——等待一枚符文石</li>
+          <li>"无界之光"——等待纯净精华</li>
+        </ul>
+        <p style="color:var(--silver)">将正确的神器放入各凹槽，以证明你的资格。</p>`);
+      break;
+
+    case 'crest_slot':
+      if (hasFlag('crest_placed')) {
+        showModal('纹章凹槽——已嵌入', `<p>家族纹章勋章嵌在凹槽中，散发着认同的光芒。</p>`);
+      } else if (G.selectedItem === 'crest_medallion') {
+        setFlag('crest_placed');
+        removeItem('crest_medallion');
+        addMsg('纹章勋章嵌入凹槽，闪现古老的认同之光！', 'important');
+        checkRelicPuzzle();
+      } else {
+        showModal('纹章凹槽', `<p>圆形凹槽上刻有铭文："创始者之印。"它等待一枚建院家族的勋章。</p><p style="color:var(--silver);font-style:italic">从行囊中选择家族纹章勋章，然后点击此处嵌入。</p>`);
+      }
+      break;
+
+    case 'rune_slot':
+      if (hasFlag('rune_placed')) {
+        showModal('符文凹槽——已嵌入', `<p>符文石安坐于凹槽之中，光芒沉稳而守护。</p>`);
+      } else if (G.selectedItem === 'rune_stone') {
+        setFlag('rune_placed');
+        removeItem('rune_stone');
+        addMsg('符文石嵌入祭坛，闪耀着守护之力！', 'important');
+        checkRelicPuzzle();
+      } else {
+        showModal('符文凹槽', `<p>方形凹槽上刻有铭文："守望者之记。"它等待一枚符文基石。</p><p style="color:var(--silver);font-style:italic">从行囊中选择符文石，然后点击此处嵌入。</p>`);
+      }
+      break;
+
+    case 'essence_slot':
+      if (hasFlag('essence_placed')) {
+        showModal('精华凹槽——已注入', `<p>光辉精华充盈着水晶凹槽，散发纯净的光辉。</p>`);
+      } else if (G.selectedItem === 'luminous_essence') {
+        setFlag('essence_placed');
+        removeItem('luminous_essence');
+        addMsg('光辉精华注入凹槽，充盈着超凡的光芒！', 'important');
+        checkRelicPuzzle();
+      } else {
+        showModal('精华凹槽', `<p>水晶凹槽上刻有铭文："无界之光。"它渴望纯净的光之能量。</p><p style="color:var(--silver);font-style:italic">从行囊中选择光辉精华，然后点击此处注入。</p>`);
+      }
+      break;
+
+    case 'relic_painting':
+      addJournal('relic_lore');
+      showModal('创始画作', `<p>三位创建者立于学院门前，各持一件守护神器：</p>
+        <ul style="margin:10px 0;padding-left:20px;line-height:2">
+          <li>瓦尔德里斯手持<strong style="color:var(--gold)">勋章</strong></li>
+          <li>瑟隆手持<strong style="color:var(--silver)">符文石</strong></li>
+          <li>瑟拉菲娜手持<strong style="color:var(--glow-green)">光之瓶</strong></li>
+        </ul>
+        <p style="color:var(--silver)">神器必须在祭坛上合为一体，以证明资格。</p>`);
+      break;
+
+    case 'relic_fireplace':
+      showModal('永恒之焰', `<p>一炉无需燃料便燃烧了数百年的银金色火焰，不投阴影。这是创建者永恒守望的象征。</p>`);
+      break;
+
+    case 'relic_rune':
+      showModal('守护符文', `<p>入口旁的守护符文，为遗物厅提供额外的结界保护。符文脉动如心跳，与永恒之焰的节奏共振。</p><p style="color:var(--silver);font-style:italic">这是学院防御体系的一部分，并不直接关联当前的谜题。</p>`);
+      break;
+
+    case 'relic_candle':
+      showModal('烛台', `<p>祭坛旁的长明烛台。蜡炬从未燃尽，似乎在守护着祭坛上沉睡的古老神器。</p>`);
+      break;
+
+    case 'rel_door_left':
+      navigateTo('potion');
+      break;
+    case 'rel_door_right':
+      navigateTo('study');
+      break;
+  }
+}
+
+function handleStudy(objId) {
+  switch(objId) {
+    case 'study_desk':
+      if (!hasFlag('study_desk_examined')) {
+        setFlag('study_desk_examined');
+        addJournal('torn_fragment');
+        addMsg('在魔典中，你找到了与残页碎片吻合的缺失段落！', 'important');
+        showModal('院长书桌', `<p>星图和翻开的魔法书覆盖了整张书桌。其中一本——《论封印之门》——缺了一页。你将残页碎片对准缺口……</p>
+          <div class="fragment-display">
+            <p style="color:var(--glow-gold)">"当三印归位、星盘转正，最终之门将为初代大法师的银钥匙所开。"</p>
+          </div>
+          <p style="color:var(--silver)">完整的段落确认了你必须做的事：集齐三件遗物，然后解开星盘之谜。</p>`);
+      } else {
+        showModal('院长书桌', `<p>书桌上的秘密已揭开。魔典中的段落昭然——星盘是通往自由的关键。</p>`);
+      }
+      break;
+
+    case 'astral_dial_slot':
+      if (hasFlag('dial_solved')) {
+        showModal('星盘机关——已解开', `<p>星盘在基座中完美旋转，所有符号已对齐。机关嗡鸣着科技之力。</p>`);
+      } else if (G.selectedItem === 'astral_dial') {
+        removeItem('astral_dial');
+        setFlag('dial_installed');
+        addMsg('星盘碎片嵌入机关！现在你需要对齐符号……', 'important');
+        openDialPuzzle();
+      } else if (hasFlag('dial_installed')) {
+        openDialPuzzle();
+      } else {
+        showModal('星盘机关', `<p>一座精密机关，中央有一个空插槽。它需要一枚星盘碎片才能运作。四重旋转环上各刻有不同的科技符号。</p><p style="color:var(--silver);font-style:italic">你需要找到星盘碎片并嵌入此处。</p>`);
+      }
+      break;
+
+    case 'study_window':
+      showModal('观星窗', `<p>不可能存在的星座在墨黑的天穹上缓缓转动。你能辨认出四个显赫的星阵：菱形、圆形、三角形和星形——各自散发着元素的辉光。</p><p style="color:var(--silver)">◆ ● ▲ ✦ ——与残页上相同的符号……</p>`);
+      addJournal('dial_symbols');
+      break;
+
+    case 'study_bookshelf':
+      showModal('禁书架', `<p>架上限制级典籍排列整齐。其中一本吸引了你的注意——《论封印之门》。明显有一页被人撕去了。</p><p style="color:var(--silver)">要是你手中有那缺失的一页就好了……</p>`);
+      if (hasItem('torn_page') && !hasFlag('torn_page_used_study')) {
+        setFlag('torn_page_used_study');
+        addJournal('torn_fragment');
+        addMsg('残页碎片完美嵌入！你现在可以阅读完整段落了。', 'clue');
+      }
+      break;
+
+    case 'study_chair':
+      showModal('高背椅', `<p>深红丝绒已被数百年的沉思磨得光滑。院长的沉思之座——权威与智慧的象征。你能感受到残留的思绪，如同久远决断的回响。</p>`);
+      break;
+
+    case 'study_candle':
+      showModal('烛台', `<p>书桌旁的银烛台，蜡油缓缓滴落。这盏烛火据说只在院长夜读时自行点燃——而今夜，它为你而亮。</p>`);
+      break;
+
+    case 'study_rune':
+      showModal('星辰符文', `<p>地面上镶嵌的星辰符文。它精确地指向窗外北天星座的位置——某种天文定位标记。学院创建者对星辰有着近乎执念的关注。</p>`);
+      break;
+
+    case 'final_door':
+      if (hasFlag('game_ended')) return;
+      if (G.selectedItem === 'silver_key') {
+        setFlag('final_door_opened');
+        setFlag('game_ended');
+        removeItem('silver_key');
+        G.puzzlesSolved++;
+        updateProgress();
+        showEnding();
+      } else if (hasFlag('dial_solved')) {
+        showModal('封印之门', `<p>星盘对齐后，结界已减弱。锁孔泛着明亮的光芒。你需要银钥匙来完成最后的解锁。</p>`);
+      } else {
+        showModal('封印之门', `<p>古老的结界将此门封死。门面上嵌有三重银环。锁孔脉动着月光。</p><p style="color:var(--silver);font-style:italic">此门不会屈服于蛮力。你必须另寻他法……</p>`);
+      }
+      break;
+
+    case 'study_door_left':
+      navigateTo('relics');
+      break;
+  }
+}
+
+// ===========================
+// POTION PUZZLE
+// ===========================
+function openPotionPuzzle() {
+  const ingredients = [
+    { id:'earth', icon:'◆', name:'土根精华', color:'#8a6a3a' },
+    { id:'water', icon:'●', name:'月水酊剂', color:'#4a7a9a' },
+    { id:'fire',  icon:'▲', name:'凤凰灰烬', color:'#aa4a2a' },
+    { id:'air',   icon:'✦', name:'微风精华', color:'#7a9a7a' },
+  ];
+  const correctOrder = ['earth','water','fire','air'];
+  let playerOrder = [];
+
+  const render = () => {
+    const bowlContent = playerOrder.map(id => ingredients.find(i=>i.id===id).icon).join(' ');
+    return `
+      <h3 style="color:var(--gold);text-align:center;margin-bottom:10px">✦ 元素会聚 ✦</h3>
+      <p style="text-align:center;color:var(--silver);font-size:0.85em;margin-bottom:16px">
+        按正确顺序添加材料。查阅日志中的元素诗句。
+      </p>
+      <div class="potion-bowl ${playerOrder.length > 0 ? 'active' : ''}">${bowlContent || '空坩埚'}</div>
+      <div class="potion-ingredients">
+        ${ingredients.map(ing => `
+          <div class="potion-ingredient ${playerOrder.includes(ing.id) ? (correctOrder[playerOrder.indexOf(ing.id)] === ing.id ? 'selected-ing' : 'wrong') : ''}"
+               onclick="puzzleClick_ingredient('${ing.id}')">
+            <span class="p-icon" style="color:${ing.color}">${ing.icon}</span>
+            <span class="p-name">${ing.name}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:center;margin-top:10px">
+        <button class="action-btn" onclick="puzzleClick_resetPotion()" style="font-size:0.8em">重置</button>
+      </div>
+    `;
+  };
+
+  window.puzzleClick_ingredient = (id) => {
+    if (playerOrder.includes(id)) return;
+    playerOrder.push(id);
+    const idx = playerOrder.length - 1;
+    if (correctOrder[idx] !== id) {
+      // Wrong ingredient
+      setTimeout(() => {
+        addMsg('混合物嘶嘶作响——顺序错误！坩埚已重置。', '');
+        playerOrder = [];
+        updateModalContent(render());
+      }, 600);
+      updateModalContent(render());
+      return;
+    }
+    if (playerOrder.length === 4) {
+      // Success!
+      setTimeout(() => {
+        setFlag('potion_solved');
+        removeItem('empty_vial');
+        addItem({...ITEMS.luminous_essence});
+        addItem({...ITEMS.rune_stone});
+        addJournal('element_meaning');
+        G.puzzlesSolved++;
+        updateProgress();
+        addMsg('坩埚迸发光芒！空水晶瓶注满了光辉精华，符文石从蒸汽中凝聚而出！', 'item');
+        closeModal();
+        showModal('炼药完成！', `
+          <p style="text-align:center">第四种材料融入药液，坩埚迸发灿烂光辉！</p>
+          <div class="fragment-display">
+            <p style="color:var(--glow-gold)">◆ 土 → ● 水 → ▲ 火 → ✦ 风</p>
+            <p style="margin-top:8px;color:var(--glow-green)">元素会聚为纯净的光辉精华！</p>
+          </div>
+          <p style="color:var(--glow-green);text-align:center;margin-top:10px">✦ 空水晶瓶转化为：光辉精华</p>
+          <p style="color:var(--glow-green);text-align:center;margin-top:6px">✦ 获得：符文石——从科技蒸汽中凝聚而出</p>
+          <p style="color:var(--silver);text-align:center;margin-top:10px">这些神器在前方将不可或缺。</p>`);
+      }, 800);
+    }
+    updateModalContent(render());
+  };
+
+  window.puzzleClick_resetPotion = () => {
+    playerOrder = [];
+    updateModalContent(render());
+  };
+
+  showModal('药剂室——坩埚', render());
+}
+
+// ===========================
+// RELIC PUZZLE CHECK
+// ===========================
+function checkRelicPuzzle() {
+  if (hasFlag('crest_placed') && hasFlag('rune_placed') && hasFlag('essence_placed')) {
+    setFlag('relics_solved');
+    addItem({...ITEMS.astral_dial});
+    G.puzzlesSolved++;
+    updateProgress();
+    addMsg('三件神器已归位！祭坛迸发光芒，星盘碎片现世！', 'item');
+    setTimeout(() => {
+      showModal('祭坛觉醒', `
+        <p style="text-align:center">当最后一件神器归位，祭坛迸发力量！</p>
+        <div class="fragment-display">
+          <p style="color:var(--glow-gold)">三印合一。<br>创始者之印 ✓ 守望者之记 ✓ 无界之光 ✓</p>
+        </div>
+        <p style="text-align:center;margin-top:10px">祭坛底座中暗格开启，露出一件天体精密神器：</p>
+        <p style="color:var(--glow-green);text-align:center;font-size:1.2em">✦ 获得：星盘碎片</p>
+        <p style="color:var(--silver);text-align:center;margin-top:10px">这枚星盘碎片应在院长书房中找到归宿……</p>`);
+    }, 500);
+  }
+}
+
+// ===========================
+// DIAL PUZZLE
+// ===========================
+function openDialPuzzle() {
+  // Four dials, each cycles through symbols. Must align to correct sequence.
+  const symbols = ['◆','●','▲','✦']; // Earth, Water, Fire, Air
+  const symbolNames = ['土','水','火','风'];
+  const correctSeq = [0,1,2,3]; // ◆ ● ▲ ✦
+  let dialPositions = [0,0,0,0]; // start all at ◆
+  if (hasFlag('dial_positions')) {
+    dialPositions = G.flags.dial_positions.slice();
+  }
+
+  const render = () => {
+    return `
+      <h3 style="color:var(--gold);text-align:center;margin-bottom:8px">✦ 星辰对齐 ✦</h3>
+      <p style="text-align:center;color:var(--silver);font-size:0.85em;margin-bottom:16px">
+        旋转每环，对齐正确的符号。诗句告知了顺序：土、水、火、风。
+      </p>
+      <div class="dial-container">
+        ${dialPositions.map((pos, i) => `
+          <div style="text-align:center">
+            <div class="dial ${dialPositions[i] === correctSeq[i] && dialPositions.every((p,j) => p === correctSeq[j]) && i === 3 ? 'solved' : ''}"
+                 onclick="puzzleClick_rotateDial(${i})" title="点击旋转">
+              <div class="dial-symbol">${symbols[pos]}</div>
+            </div>
+            <div class="dial-label">第${i+1}环</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:center;margin-top:16px">
+        <p style="color:var(--parchment-dark);font-size:0.8em;font-style:italic">
+          当前对齐：${dialPositions.map(p => symbols[p]).join(' ')}
+        </p>
+        <p style="color:var(--silver);font-size:0.75em;margin-top:6px">
+          目标：◆ ● ▲ ✦（土 → 水 → 火 → 风）
+        </p>
+      </div>
+    `;
+  };
+
+  window.puzzleClick_rotateDial = (idx) => {
+    dialPositions[idx] = (dialPositions[idx] + 1) % 4;
+    G.flags.dial_positions = dialPositions.slice();
+
+    // Check solution
+    if (dialPositions.every((p,i) => p === correctSeq[i])) {
+      setFlag('dial_solved');
+      G.puzzlesSolved++;
+      updateProgress();
+      addJournal('final_sequence');
+      addItem({...ITEMS.silver_key});
+      addMsg('星盘完美对齐！机关开启，银钥匙现世！', 'item');
+      setTimeout(() => {
+        closeModal();
+        showModal('星门开启', `
+          <p style="text-align:center">四环咔嗒入位，完美对齐！</p>
+          <div class="fragment-display">
+            <p style="color:var(--glow-gold)">◆ 土 → ● 水 → ▲ 火 → ✦ 风</p>
+            <p style="margin-top:8px;color:var(--silver)">"当星盘转正，最终之门将为银钥匙所开。"</p>
+          </div>
+          <p style="text-align:center;margin-top:12px">机关滑开，其中——以午夜丝绒衬底——安放着初代大法师的银钥匙。</p>
+          <p style="color:var(--glow-green);text-align:center;font-size:1.2em;margin-top:10px">✦ 获得：银钥匙</p>
+          <p style="color:var(--silver);text-align:center;margin-top:10px">回到封印之门前。你的自由在等待。</p>`);
+      }, 600);
+    }
+    updateModalContent(render());
+  };
+
+  showModal('星盘机关', render());
+}
+
+// ===========================
+// NAVIGATION
+// ===========================
+function isNavLocked(roomId) {
+  if (roomId === 'relics' && !hasFlag('potion_solved')) return true;
+  if (roomId === 'study' && !hasFlag('relics_solved')) return true;
+  return false;
+}
+
+function navigateTo(roomId) {
+  if (isNavLocked(roomId)) {
+    if (roomId === 'relics') addMsg('通往遗物厅的通道被魔法结界封印。也许证明你对元素的掌握能解除封印……', '');
+    else if (roomId === 'study') addMsg('院长书房的门被结界封死。你必须先在遗物祭坛证明资格。', '');
+    else addMsg('此通道被魔法封印。', '');
+    return;
+  }
+
+  G.currentRoom = roomId;
+  if (!G.flags.visited_rooms) G.flags.visited_rooms = [];
+  if (!G.flags.visited_rooms.includes(roomId)) G.flags.visited_rooms.push(roomId);
+  renderRoom();
+  updateRoomIndicator();
+  addMsg(`你进入了${ROOMS[roomId].name}。`, '');
+}
+
+// ===========================
+// ROOM INDICATOR
+// ===========================
+function updateRoomIndicator() {
+  const rooms = ['entrance','library','potion','relics','study'];
+  const visited = G.flags.visited_rooms || [];
+  rooms.forEach(r => {
+    const dot = document.getElementById('dot-' + r);
+    if (!dot) return;
+    dot.className = 'room-dot';
+    if (r === G.currentRoom) dot.classList.add('current');
+    else if (visited.includes(r)) dot.classList.add('visited');
+    else if (!isNavLocked(r) || visited.includes(r)) dot.classList.add('visited');
+    else dot.classList.add('locked');
+  });
+}
+
+// ===========================
+// RENDERING
+// ===========================
+function renderRoom() {
+  const room = ROOMS[G.currentRoom];
+  const viewport = document.getElementById('viewport');
+  document.getElementById('room-name').textContent = room.name;
+
+  // Build room HTML
+  let html = `<div class="room-scene active room-${G.currentRoom}">`;
+  html += `<div class="room-bg"></div>`;
+
+  // Room-specific decorative elements
+  html += `<div class="floor"></div>`;
+  if (G.currentRoom === 'entrance') {
+    html += `<div class="arch"></div><div class="wall-left"></div><div class="wall-right"></div>`;
+  }
+  if (G.currentRoom === 'library' || G.currentRoom === 'potion' || G.currentRoom === 'relics' || G.currentRoom === 'study') {
+    html += `<div class="wall-left"></div><div class="wall-right"></div><div class="wall-deco"></div>`;
+  }
+
+  // Ambient particles
+  html += `<div class="ambient-particles">`;
+  for (let i = 0; i < 12; i++) {
+    const x = Math.random() * 90 + 5;
+    const y = Math.random() * 80 + 10;
+    const delay = Math.random() * 4;
+    const dur = 3 + Math.random() * 3;
+    const colors = ['var(--glow-gold)','var(--glow-blue)','var(--glow-purple)','var(--glow-green)'];
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    html += `<div class="particle" style="left:${x}%;top:${y}%;animation-delay:${delay}s;animation-duration:${dur}s;background:${color}"></div>`;
+  }
+  html += `</div>`;
+
+  // Vignette overlay
+  html += `<div class="room-vignette"></div>`;
+
+  // Interactive objects
+  room.objects.forEach(obj => {
+    let collected = false;
+    // Mark certain objects as collected based on flags
+    if (obj.id === 'special_book' && hasFlag('special_book_read')) collected = true;
+    if (obj.id === 'bottle_empty' && hasFlag('potion_solved')) collected = true;
+    if (obj.id === 'bottle_empty2' && hasFlag('potion_solved')) collected = true;
+
+    // Dynamic visual states
+    let extraStyle = '';
+    if (obj.id === 'portrait' && hasFlag('candle_used_on_portrait')) {
+      extraStyle = 'box-shadow:0 0 25px rgba(255,220,120,0.5);';
+    }
+    if (obj.id === 'cabinet' && hasFlag('cabinet_opened')) {
+      extraStyle = 'border-color:var(--glow-green);';
+    }
+    if (obj.id === 'crest_slot' && hasFlag('crest_placed')) {
+      extraStyle = 'border-style:solid;border-color:var(--glow-green);background:rgba(64,255,144,0.1);';
+    }
+    if (obj.id === 'rune_slot' && hasFlag('rune_placed')) {
+      extraStyle = 'border-style:solid;border-color:var(--glow-green);background:rgba(64,255,144,0.1);';
+    }
+    if (obj.id === 'essence_slot' && hasFlag('essence_placed')) {
+      extraStyle = 'border-style:solid;border-color:var(--glow-green);background:rgba(64,255,144,0.1);';
+    }
+    if (obj.id === 'final_door' && hasFlag('dial_solved')) {
+      extraStyle = 'border-color:var(--gold);box-shadow:0 0 20px rgba(201,168,76,0.4);';
+    }
+    if (obj.id === 'astral_dial_slot' && hasFlag('dial_installed')) {
+      extraStyle = 'border-color:var(--glow-blue);box-shadow:0 0 20px rgba(100,150,255,0.4);';
+    }
+
+    // Inner content for slot objects
+    let inner = '';
+    if (obj.id === 'crest_slot') inner = hasFlag('crest_placed') ? '🪙' : '◇';
+    if (obj.id === 'rune_slot') inner = hasFlag('rune_placed') ? '🪨' : '□';
+    if (obj.id === 'essence_slot') inner = hasFlag('essence_placed') ? '✨' : '△';
+    if (obj.id === 'potion_rune') inner = '⟡';
+
+    html += `<div class="interactive ${obj.cls} ${collected ? 'collected' : ''}"
+      style="left:${obj.x}%;top:${obj.y}%;width:${obj.w}px;height:${obj.h}px;z-index:${3 + Math.round(obj.y / 10)};${extraStyle}"
+      onclick="handleObjectClick('${obj.id}')">
+      ${inner}
+      <span class="obj-label">${obj.label}</span>
+    </div>`;
+  });
+
+  // Navigation arrows with labels
+  if (room.nav.left) {
+    const locked = isNavLocked(room.nav.left);
+    const label = room.nav.leftLabel || ROOMS[room.nav.left].name;
+    html += `<div class="nav-arrow left ${locked ? 'disabled' : ''}" onclick="navigateTo('${room.nav.left}')" title="${locked ? '结界封印' : label}">
+      ◀<span class="nav-label">${locked ? '🔒 已封印' : label}</span></div>`;
+  }
+  if (room.nav.right) {
+    const locked = isNavLocked(room.nav.right);
+    const label = room.nav.rightLabel || ROOMS[room.nav.right].name;
+    html += `<div class="nav-arrow right ${locked ? 'disabled' : ''}" onclick="navigateTo('${room.nav.right}')" title="${locked ? '结界封印' : label}">
+      ▶<span class="nav-label">${locked ? '🔒 已封印' : label}</span></div>`;
+  }
+
+  html += `</div>`;
+  viewport.innerHTML = html;
+}
+
+// ===========================
+// INVENTORY UI
+// ===========================
+function updateInventory(animSlot) {
+  const bar = document.getElementById('inventory-bar');
+  let html = '<span id="inv-label">行囊</span>';
+
+  const maxSlots = 8;
+  for (let i = 0; i < maxSlots; i++) {
+    const item = G.inventory[i];
+    if (item) {
+      const selected = G.selectedItem === item.id ? 'selected' : '';
+      const anim = animSlot === i ? 'item-gained' : '';
+      html += `<div class="inv-slot ${selected} ${anim}" onclick="selectItem('${item.id}')" title="${item.name}">
+        ${item.icon}
+        <span class="inv-tip">${item.name}</span>
+      </div>`;
+    } else {
+      html += `<div class="inv-slot empty">—</div>`;
+    }
+  }
+  html += `<span id="inv-count-display">${G.inventory.length}/${maxSlots}</span>`;
+  bar.innerHTML = html;
+
+  // Update inspect button
+  const inspectBtn = document.getElementById('btn-inspect');
+  if (inspectBtn) inspectBtn.disabled = !G.selectedItem;
+}
+
+// ===========================
+// JOURNAL UI
+// ===========================
+function updateJournal(latestKey) {
+  const panel = document.getElementById('journal-content');
+  const cats = [
+    { key:'phrases', label:'铭文与密语', icon:'📜' },
+    { key:'symbols', label:'符号与密码', icon:'🔮' },
+    { key:'elements', label:'元素线索', icon:'🌿' },
+    { key:'history', label:'学院历史', icon:'📖' },
+    { key:'observations', label:'谜题观察', icon:'🔍' },
+  ];
+  // Stats summary
+  const totalEntries = Object.values(G.journal).reduce((sum, arr) => sum + arr.length, 0);
+  const catsWithEntries = cats.filter(c => G.journal[c.key].length > 0).length;
+  let html = `<div class="journal-stats">
+    <div class="journal-stat"><span class="stat-num">${totalEntries}</span>条目</div>
+    <div class="journal-stat"><span class="stat-num">${catsWithEntries}/${cats.length}</span>类别</div>
+  </div>`;
+
+  cats.forEach(cat => {
+    const entries = G.journal[cat.key];
+    if (entries.length > 0) {
+      html += `<div class="journal-cat"><h4><span class="cat-icon">${cat.icon}</span>${cat.label} (${entries.length})</h4>`;
+      entries.forEach((e, idx) => {
+        const isNew = (latestKey && JOURNAL_ENTRIES[latestKey] && JOURNAL_ENTRIES[latestKey].text === e && cat.key === JOURNAL_ENTRIES[latestKey].cat);
+        html += `<div class="journal-entry ${isNew ? 'new' : ''}">${e.replace(/\n/g,'<br>')}</div>`;
+      });
+      html += `</div>`;
+    }
+  });
+  if (totalEntries === 0) html += '<p style="color:var(--parchment-dark);font-style:italic;text-align:center;padding:20px">日志尚为空白。探索学院，发现线索……</p>';
+  panel.innerHTML = html;
+}
+
+function toggleJournal() {
+  document.getElementById('journal-panel').classList.toggle('open');
+}
+
+// ===========================
+// MESSAGE LOG
+// ===========================
+function addMsg(text, type) {
+  G.messages.push({ text, type, time: Date.now() });
+  const log = document.getElementById('msg-log');
+  const entry = document.createElement('div');
+  entry.className = `msg-entry ${type || ''}`;
+  entry.textContent = text;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+
+  // Keep only last 50
+  while (log.children.length > 50) log.removeChild(log.firstChild);
+}
+
+// ===========================
+// MODAL SYSTEM
+// ===========================
+function showModal(title, bodyHtml) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function updateModalContent(html) {
+  document.getElementById('modal-body').innerHTML = html;
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+function closeModalOutside(e) {
+  if (e.target.id === 'modal-overlay') closeModal();
+}
+
+function inspectSelected() {
+  if (!G.selectedItem) return;
+  const item = G.inventory.find(i => i.id === G.selectedItem);
+  if (item) {
+    showModal(item.name, `<p style="font-size:1.4em;text-align:center;margin-bottom:12px">${item.icon}</p><p style="color:var(--gold);text-align:center;font-size:1.1em;margin-bottom:12px">${item.name}</p><p style="line-height:1.7">${item.desc}</p>`);
+  }
+}
+
+// ===========================
+// HINT SYSTEM
+// ===========================
+function getHintKey() {
+  // Determine current puzzle state
+  if (!hasFlag('candle_used_on_portrait')) return 'hint_candle';
+  if (!hasFlag('special_book_read')) return 'hint_book';
+  if (!hasFlag('library_note_read')) return 'hint_note';
+  if (!hasFlag('bronze_key_found')) return 'hint_key';
+  if (!hasFlag('cabinet_opened')) return 'hint_cabinet';
+  if (!hasFlag('potion_solved')) return 'hint_potion';
+  if (!hasFlag('relics_solved')) return 'hint_relics';
+  if (!hasFlag('dial_solved')) return 'hint_dial';
+  if (!hasFlag('final_door_opened')) return 'hint_final';
+  return 'hint_done';
+}
+
+const HINTS = {
+  hint_candle: [
+    '画像似乎隐藏着什么。光线能揭示被隐藏的事物……',
+    '试试与画像旁边的烛台互动。',
+    '点击烛台，将光线转向创始者画像。'
+  ],
+  hint_book: [
+    '画像揭示了对"元素会聚"的提及。去哪里能找到这种知识？',
+    '大图书馆有一整区关于元素哲学的藏书。',
+    '前往图书馆，点击元素书架，然后检视发光典籍。'
+  ],
+  hint_note: [
+    '你已找到元素诗句。在图书馆中寻找更多关于隐藏物品的线索。',
+    '阅览桌上似乎有前人留下的笔记。',
+    '点击阅览桌，找到关于隐藏钥匙的便条。'
+  ],
+  hint_key: [
+    '便条提到一把藏在"永不熄灭的火焰"中的钥匙。这样的火焰在哪里？',
+    '入口大厅有一座非同寻常的壁炉……',
+    '回到入口大厅，点击石砌壁炉，找到青铜钥匙。'
+  ],
+  hint_cabinet: [
+    '你已有了一把青铜钥匙。入口大厅中有东西配着青铜锁。',
+    '入口大厅中上锁的柜子可能对这把钥匙有反应。',
+    '在行囊中选择青铜钥匙，然后点击上锁的柜子。'
+  ],
+  hint_potion: [
+    '坩埚等待正确的元素顺序。你的日志中也许有答案。',
+    '日志中的诗描述了顺序：根、潮、火、风。',
+    '在药剂室点击坩埚，按顺序添加材料：土根精华 → 月水酊剂 → 凤凰灰烬 → 微风精华。'
+  ],
+  hint_relics: [
+    '遗物祭坛有三个凹槽，每个需要特定的神器。',
+    '你需要一枚勋章、一枚符文石和光辉精华。检查行囊并探索。',
+    '选择每件神器（纹章勋章、符文石、光辉精华），点击祭坛上对应的凹槽嵌入。'
+  ],
+  hint_dial: [
+    '星盘碎片需要放入院长书房中的星盘机关。',
+    '星盘上的符号对应元素。日志中有顺序。',
+    '选择星盘碎片，点击星盘机关，然后将每环旋转到：◆ ● ▲ ✦'
+  ],
+  hint_final: [
+    '你已持有银钥匙。封印之门在等待。',
+    '院长书房中的最终之门现在可以打开了。',
+    '选择银钥匙，点击封印之门。'
+  ],
+  hint_done: [
+    '你已解开一切！学院的秘密尽归于你。',
+    '这里已没有更多可发现的东西。',
+    '恭喜——你已从Tech学院中脱逃！'
+  ],
+};
+
+function showHint() {
+  const key = getHintKey();
+  if (!G.hintLevel[key]) G.hintLevel[key] = 0;
+  const level = Math.min(G.hintLevel[key], 2);
+  const hint = HINTS[key][level];
+  G.hintLevel[key] = Math.min(G.hintLevel[key] + 1, 2);
+
+  showModal('✦ 指引 ✦', `
+    <div class="hint-box">
+      <p>${hint}</p>
+    </div>
+    <p style="color:var(--parchment-dark);font-size:0.75em;text-align:center;margin-top:12px;font-style:italic">
+      提示等级 ${level + 1}/3 ——后续提示将更加具体。
+    </p>`);
+}
+
+// ===========================
+// PROGRESS
+// ===========================
+function updateProgress() {
+  const pct = Math.round((G.puzzlesSolved / G.totalPuzzles) * 100);
+  document.getElementById('progress-text').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+// ===========================
+// ENDING
+// ===========================
+function showEnding() {
+  const overlay = document.getElementById('ending-overlay');
+  document.getElementById('ending-text').innerHTML = `
+    <p style="margin-bottom:12px">银钥匙在古老的锁孔中转动。结界如晨雾般消散。封印之门开启，露出一条螺旋阶梯，通向星光。</p>
+    <p style="margin-bottom:12px">当你攀登时，附魔城堡似乎在向你告别——烛火摇曳致敬，瓦尔德里斯大法师的画像露出会心的微笑，连石壁都低声吟唱着赞许。</p>
+    <p style="margin-bottom:12px" style="color:var(--gold)">你已证明自己配得上Tech学院最深切的信任。创建者——瓦尔德里斯、瑟拉菲娜和瑟隆——的知识传承于你。</p>
+    <p style="color:var(--candle);font-style:italic">"并非所有漫游者都迷途，并非所有牢笼皆是囚笼。学院考验的不是你的力量，而是你的智慧。"</p>
+    <p style="margin-top:16px;color:var(--glow-green)">✦ 恭喜你，学者 ✦<br>你已从Tech学院脱逃。</p>
+  `;
+  overlay.classList.add('show');
+}
+
+function restartGame() {
+  // Reset all state
+  G.currentRoom = 'entrance';
+  G.inventory = [];
+  G.selectedItem = null;
+  G.flags = {};
+  G.journal = { phrases:[], symbols:[], elements:[], history:[], observations:[] };
+  G.messages = [];
+  G.hintLevel = {};
+  G.puzzlesSolved = 0;
+
+  document.getElementById('ending-overlay').classList.remove('show');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('msg-log').innerHTML = '';
+  document.getElementById('title-screen').classList.remove('hidden');
+  initTitleParticles();
+}
+
+// ===========================
+// INIT
+// ===========================
+function initTitleParticles() {
+  const container = document.getElementById('title-particles');
+  if (!container) return;
+  const colors = ['var(--glow-gold)','var(--glow-blue)','var(--glow-purple)','var(--glow-green)','var(--candle)'];
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'tp';
+    p.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;
+      animation-delay:${Math.random()*5}s;animation-duration:${3+Math.random()*4}s;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      width:${2+Math.random()*3}px;height:${2+Math.random()*3}px`;
+    container.appendChild(p);
+  }
+}
+
+function startGame() {
+  document.getElementById('title-screen').classList.add('hidden');
+  document.getElementById('app').style.display = 'flex';
+  G.flags.visited_rooms = ['entrance'];
+  renderRoom();
+  updateInventory();
+  updateJournal();
+  updateProgress();
+  updateRoomIndicator();
+  addMsg('你发现自己身处Tech学院的入口大厅。身后的巨门已被古老结界封死。', 'important');
+  addMsg('仔细探索大厅。每个阴影中都可能隐藏着秘密……', '');
+}
+
+initTitleParticles();
+</script>
+</body>
+</html>
